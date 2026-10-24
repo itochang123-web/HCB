@@ -925,8 +925,8 @@ async function sendData() {
   const stamp = csvStamp();
   const when = new Date().toLocaleString('zh-TW', { hour12: false });
   const subject = `H10 資料 ${when}`;
-  const type = 'text/csv';
-  const names = [`H10-心搏資料-${stamp}.csv`];
+  const type = 'text/plain';
+  const names = [`H10-心搏資料-${stamp}.txt`];
   const blobs = [new Blob([beatsCsv()], { type })];
   let files = null;
   try { files = names.map((n, i) => new File([blobs[i]], n, { type })); } catch (_) { files = null; }
