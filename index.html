@@ -921,13 +921,13 @@ function saveBlob(blob, name) {
 /* ---------- send data ---------- */
 const SEND_TO = 'itochang123@yahoo.com';
 async function sendData() {
-  if (!state.beats.length && !state.readings.length) { els.sendStatus.textContent = '尚無資料可傳送。'; return; }
+  if (!state.beats.length) { els.sendStatus.textContent = '尚無資料可傳送。'; return; }
   const stamp = csvStamp();
   const when = new Date().toLocaleString('zh-TW', { hour12: false });
   const subject = `H10 資料 ${when}`;
   const type = 'text/csv';
-  const names = [`H10-心搏資料-${stamp}.csv`, `H10-讀值紀錄-${stamp}.csv`];
-  const blobs = [new Blob([beatsCsv()], { type }), new Blob([readingsCsv()], { type })];
+  const names = [`H10-心搏資料-${stamp}.csv`];
+  const blobs = [new Blob([beatsCsv()], { type })];
   let files = null;
   try { files = names.map((n, i) => new File([blobs[i]], n, { type })); } catch (_) { files = null; }
   if (files && navigator.canShare && navigator.share) {
@@ -945,8 +945,8 @@ async function sendData() {
     }
   }
   names.forEach((n, i) => saveBlob(blobs[i], n));
-  const body = `附上 H10 資料（${state.readings.length} 筆讀值）。\n\n請將剛剛下載的兩個檔案附加到這封郵件：\n${names.join('\n')}`;
-  els.sendStatus.textContent = `已下載 ${names.join('、')}。請在開啟的郵件中附加這兩個檔案後寄出。`;
+  const body = `附上 H10 心搏資料。\n\n請將剛剛下載的檔案附加到這封郵件：\n${names.join('\n')}`;
+  els.sendStatus.textContent = `已下載 ${names.join('、')}。請在開啟的郵件中附加這個檔案後寄出。`;
   setTimeout(() => { location.href = `mailto:${SEND_TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`; }, 800);
 }
 
