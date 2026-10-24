@@ -125,35 +125,7 @@ td.empty { color: var(--ink-soft); }
 .note { margin: 1.25rem 0 0; color: var(--ink-soft); font-size: 0.875rem; max-width: 34rem; }
 .note p { margin: 0 0 0.5rem; }
 
-.range-analysis { margin: 1.5rem 0 0; padding: 1rem 1.1rem; background: var(--panel); border-radius: 6px; }
-.range-analysis h2 { margin: 0 0 0.5rem; font-size: 1rem; }
-.range-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.75rem; margin: 1rem 0; }
-.range-controls label { display: grid; gap: 0.3rem; font-size: 0.875rem; color: var(--ink-soft); min-width: 0; }
-.range-controls input, .range-controls select { width: 100%; min-width: 0; min-height: 44px; border: 1.5px solid var(--line); border-radius: 6px; background: var(--paper); padding: 0.4rem; color: var(--ink); }
-.range-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem 0.5rem; margin: 1.25rem 0; }
-.range-metrics .label { display: block; color: var(--ink-soft); font-size: 0.75rem; }
-.range-metrics .number { display: block; color: var(--pen); font: 600 1.75rem/1.4 var(--font-num); font-variant-numeric: tabular-nums; }
-.range-analysis .help { color: var(--ink-soft); font-size: 0.8125rem; margin: 0.5rem 0; }
-.range-analysis .message { color: var(--ink-soft); font-size: 0.875rem; }
-.range-analysis .message.alert { color: var(--trace); }
-#rangeChart { display: block; width: 100%; height: 240px; margin: 1rem 0 0.5rem; }
-
-.rhythm-review { margin: 1.5rem 0 0; padding: 1rem 1.1rem; background: var(--panel); border-radius: 6px; }
-.rhythm-review summary { cursor: pointer; font-weight: 600; min-height: 36px; }
-.rhythm-review summary span { display: inline-block; margin-left: 0.5rem; color: var(--ink-soft); font-size: 0.8125rem; font-weight: 400; }
-.rhythm-review .help, #symptomStatus { color: var(--ink-soft); font-size: 0.8125rem; }
-.rhythm-review .help { margin: 0.6rem 0; }
-.rhythm-review .care { border-left: 3px solid var(--trace); padding-left: 0.7rem; }
-.rhythm-review .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin: 1rem 0; }
-.rhythm-review .metrics span { display: block; font-size: 0.8125rem; color: var(--ink-soft); }
-.rhythm-review .metrics strong { display: block; font: 600 1.75rem/1.3 var(--font-num); color: var(--pen); }
-.rhythm-review label { display: grid; gap: 0.35rem; font-size: 0.875rem; color: var(--ink-soft); margin: 1rem 0; }
-.rhythm-review input, .rhythm-review select { width: 100%; min-width: 0; min-height: 44px; padding: 0.45rem; border: 1.5px solid var(--line); border-radius: 6px; background: var(--paper); }
-.rhythm-review .scroll { overflow-x: auto; margin: 1rem 0; }
-.rhythm-review table { min-width: 34rem; font-size: 0.8125rem; }
-.rhythm-review td button { padding: 0.35rem 0.7rem; }
-.rhythm-review a { color: var(--pen); }
-#rhythmChart { display: block; width: 100%; height: 230px; margin-top: 1rem; }
+.help { color: var(--ink-soft); font-size: 0.8125rem; }
 </style>
 </head>
 <body>
@@ -185,10 +157,8 @@ td.empty { color: var(--ink-soft); }
     <button class="primary" id="connectBtn" type="button">連接胸帶</button>
     <button id="voiceBtn" type="button" disabled>暫停播報</button>
     <button id="testBtn" type="button">測試語音</button>
-    <button id="symptomBtn" type="button">標記圖上變化</button>
   </div>
 
-  <p id="symptomStatus" role="status"></p>
 
   <section class="settings" aria-label="設定">
     <label>播報內容
@@ -207,8 +177,8 @@ td.empty { color: var(--ink-soft); }
     </label>
     <label>心率變異性計算範圍
       <select id="window">
-        <option value="15">最近 15 秒</option>
-        <option value="30" selected>最近 30 秒</option>
+        <option value="15" selected>最近 15 秒</option>
+        <option value="30">最近 30 秒</option>
         <option value="60">最近 60 秒</option>
         <option value="120">最近 2 分鐘</option>
       </select>
@@ -229,66 +199,9 @@ td.empty { color: var(--ink-soft); }
         <option value="1.2">較快</option>
       </select>
     </label>
-    <label class="check"><input type="checkbox" id="brief"> 只播報數字</label>
+    <label class="check"><input type="checkbox" id="brief" checked> 只播報數字</label>
     <p class="hint" id="voiceHint" hidden>這台裝置尚未安裝台灣華語語音。請到裝置的語音設定中新增「中文（台灣）」語音，完成後重新載入本頁。</p>
   </section>
-
-  <section class="range-analysis" aria-labelledby="rangeTitle">
-    <h2 id="rangeTitle">選定時段 HRV 分析</h2>
-    <p class="help">選擇開始與結束時間，或直接使用目前全部資料。可以選擇跨越午夜的時段。</p>
-    <div class="range-controls">
-      <label for="rangeFrom">開始日期與時間<input id="rangeFrom" type="datetime-local" step="1"></label>
-      <label for="rangeTo">結束日期與時間<input id="rangeTo" type="datetime-local" step="1"></label>
-      <label for="rangeWindow">每筆 HRV 的計算範圍
-        <select id="rangeWindow"><option value="15">15 秒</option><option value="30" selected>30 秒</option><option value="60">1 分鐘</option><option value="120">2 分鐘</option></select>
-      </label>
-    </div>
-    <div class="actions">
-      <button id="rangeRun" type="button">分析這個時段</button>
-      <button id="rangeAll" type="button">使用目前全部資料</button>
-      <button id="rangeExport" type="button" disabled>下載分析（CSV）</button>
-    </div>
-    <p id="rangeMessage" class="message" role="status">尚未分析。</p>
-    <div class="range-metrics" aria-label="時段統計">
-      <div><span class="label">平均 HRV（毫秒）</span><span class="number" id="rangeMean">--</span></div>
-      <div><span class="label">最高 HRV（毫秒）</span><span class="number" id="rangeHigh">--</span></div>
-      <div><span class="label">最低 HRV（毫秒）</span><span class="number" id="rangeLow">--</span></div>
-      <div><span class="label">估計缺漏比例</span><span class="number" id="rangeMissing">--</span></div>
-      <div><span class="label">已排除心搏比例</span><span class="number" id="rangeRejected">--</span></div>
-      <div><span class="label">RR 超過 ±3SD 比例</span><span class="number" id="rangeSd">--</span></div>
-    </div>
-    <canvas id="rangeChart" role="img" aria-label="選定時段的 HRV 趨勢；橫軸為本機時間，縱軸為 HRV 毫秒"></canvas>
-    <p id="rangeCounts" class="help"></p>
-    <p class="help">各點使用不重疊的 RMSSD 視窗，畫在視窗結束時間。平均、最高與最低只採用完整、涵蓋率至少 80%、排除比例不超過 20% 且有效差值足夠的視窗；未滿一個視窗的尾端不列入統計。</p>
-    <p class="help">缺漏比例由接收時間與 RR 長度推估，無法知道實際漏傳次數。±3SD 使用本時段合理範圍（300–2000 毫秒）內原始 RR 的平均與樣本標準差，僅作離群標記，不更改原始資料。這些比例不等於已確認的感測器錯誤率。</p>
-    <p class="help">只分析本頁目前保留的心搏資料；未收集或已被裁去的資料無法還原。此讀值版本重新整理後會清除本次資料。</p>
-  </section>
-
-  <details class="rhythm-review" id="rhythmReview">
-    <summary>心搏節律回顧（非診斷）<span id="rhythmBadge">尚未回顧</span></summary>
-    <p id="rhythmMessage" class="help" role="status">使用上方選定時段，檢視原始 RR 的相鄰間期變化。</p>
-    <p class="help">短間期表示兩次偵測心搏較接近，長間期表示較遠。本功能僅標記相對近期中位數的變化，無法確認早期收縮、區分 PAC／PVC、診斷心房顫動或判定整體心臟健康。</p>
-    <div class="actions"><button id="rhythmRun" type="button">回顧上方時段</button><button id="rhythmExport" type="button" disabled>下載本時段回顧（CSV）</button></div>
-    <div class="metrics">
-      <div><span>短 → 長配對</span><strong id="rhythmShortLong">--</strong></div>
-      <div><span>長 → 短配對</span><strong id="rhythmLongShort">--</strong></div>
-      <div><span>超出程式比較範圍的 RR</span><strong id="rhythmOutside">--</strong></div>
-      <div><span>本時段收到的 RR</span><strong id="rhythmReceived">--</strong></div>
-    </div>
-    <p id="rhythmCounts" class="help"></p>
-    <canvas id="rhythmChart" role="img" aria-label="原始 RR 回顧圖；本圖不是 ECG"></canvas>
-    <p id="rhythmSelection" class="help"></p>
-    <div class="scroll"><table><thead><tr><th scope="col">收到時間</th><th scope="col">標記型態</th><th scope="col">原始 RR／備註</th><th scope="col">參考中位數</th><th scope="col">原始圖</th></tr></thead><tbody id="rhythmBody"><tr><td colspan="5">請先分析選定時段。</td></tr></tbody></table></div>
-    <div class="actions"><button id="rhythmPrevious" type="button" disabled>上一頁</button><button id="rhythmNext" type="button" disabled>下一頁</button><span id="rhythmPager" class="help"></span></div>
-    <label for="rhythmMarkerKind">手動標記類型<select id="rhythmMarkerKind"><option value="graph_observation" selected>只有圖上變化（未表示身體有感覺）</option><option value="felt_symptom">身體實際感覺到心悸或不適</option></select></label>
-    <label for="rhythmNote">手動標記備註（選填，最多 160 字）<input id="rhythmNote" type="text" maxlength="160" placeholder="例如：看到一短一長的間期"></label>
-    <p class="help">預設記錄「只有圖上變化」。只有選擇「身體實際感覺」才會標記為身體症狀；這兩種類型在回顧與匯出中分開保留。備註可省略，按上方的標記按鈕記下現在時間。</p>
-    <div class="actions"><button id="symptomExport" type="button" disabled>下載所有手動標記（CSV）</button></div>
-    <p class="help">配對前以最多 9 筆、至少 5 筆原始 RR 的中位數為參考；相鄰兩筆分別短於參考 20% 以上及長於參考 20% 以上，才標記為短→長，反向則為長→短。這是本程式自訂、未經診斷驗證的規則；不是疾病偵測標準，漏標與誤標皆可能發生。</p>
-    <p class="help">已被 HRV 排除的原始資料仍可出現在本回顧；不跨越已知接觸不良、斷線、接收間隔超過 5 秒或時鐘倒退自動配對。300–2000 毫秒以外的 RR 仍保留並列出，不能只憑它判定是停搏或感測誤差。</p>
-    <p class="help">所有時間都是通知收到時間；同一通知的多筆 RR 可能同時顯示，不是 ECG 的心搏定位時間。請搭配「下載心搏資料」保留原始資料。症狀標記與回顧同樣只保留於本次頁面，重新整理會清除。</p>
-    <p class="help care">心悸反覆出現時，請與醫師討論 ECG 或可攜式心電圖監測。若同時胸痛、呼吸困難、快昏倒或昏倒，請立即尋求醫療協助，不要等本頁分析結果。<a href="https://www.heart.org/en/health-topics/arrhythmia/about-arrhythmia/premature-contractions-pacs-and-pvcs" target="_blank" rel="noopener noreferrer">參考說明（英文）</a></p>
-  </details>
 
   <section class="history" aria-label="讀值紀錄">
     <h2>讀值紀錄</h2>
@@ -299,12 +212,16 @@ td.empty { color: var(--ink-soft); }
     <div class="foot">
       <span id="sessionInfo"></span>
       <button id="downloadBtn" type="button" disabled>下載心搏資料（CSV）</button>
+      <button id="sendBtn" class="primary" type="button" disabled>傳送資料</button>
+      <button id="clearBtn" type="button" disabled>清除資料</button>
     </div>
+    <p id="sendStatus" class="help" role="status"></p>
   </section>
 
   <div class="note">
     <p>請保持本頁開啟，並讓螢幕維持亮起。手機可能暫停在背景執行的網頁，導致語音播報停止。</p>
-    <p>讀值表格顯示本次量測的所有紀錄，最新讀值排在最上方。</p>
+    <p>讀值表格顯示本次量測的所有紀錄，最新讀值排在最上方。資料會自動儲存在這台裝置的瀏覽器中，重新整理或當機後仍會保留，可記錄整夜；按「清除資料」才會刪除。</p>
+    <p>「傳送資料」會產生心搏與讀值 CSV 檔：Android 會開啟分享選單，請選 Gmail 並寄到 itochang123@yahoo.com；其他裝置會先下載檔案並開啟郵件，請手動附加檔案。</p>
     <p>本頁以 RMSSD 計算心率變異性（HRV）。偏離近期中位數超過 20% 的心搏資料會被排除，計算相鄰差值時也不會跨越被排除的心搏。若計算範圍內超過 20% 的心搏被排除，播報末尾會加上「請檢查胸帶」（英文播報為「check strap」）。設定會儲存在本頁網址中，調整完成後可加入書籤。</p>
   </div>
 </main>
@@ -466,211 +383,6 @@ function autoVoice(all, lang = 'zh') {
 }
 // ---- end core ----
 
-(function (root) {
-  'use strict';
-
-  const RR_MIN_MS = 300;
-  const RR_MAX_MS = 2000;
-  const MIN_PAIRS = 10;
-  const MAX_RECEIVE_GAP_MS = 5000;
-  const MIN_COVERAGE = 0.80;
-  const MAX_REJECTED_SHARE = 0.20;
-  const MAX_BINS = 10000;
-  const SD_THRESHOLD = 3;
-  const WINDOWS = [15000, 30000, 60000, 120000];
-  const plausible = rr => Number.isFinite(rr) && rr >= RR_MIN_MS && rr <= RR_MAX_MS;
-
-  function unionDuration(intervals) {
-    if (!intervals.length) return 0;
-    intervals.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-    let left = intervals[0][0], right = intervals[0][1], duration = 0;
-    for (let i = 1; i < intervals.length; i++) {
-      const next = intervals[i];
-      if (next[0] > right) { duration += right - left; left = next[0]; right = next[1]; }
-      else right = Math.max(right, next[1]);
-    }
-    return duration + right - left;
-  }
-
-  function accumulator(from, to) {
-    return { from, to, total: 0, rejected: 0, pairs: 0, sumSq: 0, previous: null,
-      lastArrival: null, continuity: -1, durationMs: 0, packetT: null, packetDuration: 0, intervals: [] };
-  }
-
-  function finishPacket(a) {
-    if (a.packetT === null || a.packetDuration <= 0) return;
-    // Arrival time is not an ECG R-peak time. This bounded support interval is
-    // only a conservative coverage estimate: a late burst cannot fill an outage.
-    const left = Math.max(a.from, a.packetT - Math.min(a.packetDuration, MAX_RECEIVE_GAP_MS));
-    const right = Math.min(a.to, a.packetT);
-    if (right > left) a.intervals.push([left, right]);
-  }
-
-  function addCoverage(a, b) {
-    if (b.t !== a.packetT) {
-      finishPacket(a);
-      a.packetT = b.t;
-      a.packetDuration = 0;
-    }
-    if (plausible(b.rr) && b.contact !== false) {
-      a.durationMs += b.rr;
-      a.packetDuration += b.rr;
-    }
-  }
-
-  function coverage(a) {
-    finishPacket(a);
-    return Math.max(0, Math.min(1, a.durationMs / (a.to - a.from), unionDuration(a.intervals) / (a.to - a.from)));
-  }
-
-  // Every bin is [from, to); partial trailing bins never enter summary statistics.
-  // Operational exclusions use the existing stored flag. The independent 3-SD
-  // description does not reclassify, correct, remove or overwrite raw beats.
-  function analyzeRange(beats, from, to, windowMs = 30000) {
-    if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from || !WINDOWS.includes(windowMs)) {
-      throw new RangeError('Choose a valid time range and supported HRV window.');
-    }
-    if (!Array.isArray(beats)) throw new TypeError('Beat records must be an array.');
-    const count = Math.ceil((to - from) / windowMs);
-    if (count > MAX_BINS) throw new RangeError('The selected range contains too many analysis windows.');
-    const bins = Array.from({ length: count }, (_, i) => {
-      const start = from + i * windowMs;
-      return accumulator(start, Math.min(to, start + windowMs));
-    });
-    const overall = accumulator(from, to);
-    const rawPlausible = [];
-    let invalidRR = 0, rrMean = 0, rrM2 = 0;
-    let globalPreviousArrival = null, continuity = 0;
-
-    for (const b of beats) {
-      if (!b || !Number.isFinite(b.t)) continue;
-      // A disconnect remains a difference boundary even when its own clock time
-      // falls outside the selection (for example after a wall-clock adjustment).
-      if (b.gap) { continuity++; globalPreviousArrival = b.t; continue; }
-      if (b.t < from || b.t >= to) { continuity++; globalPreviousArrival = b.t; continue; }
-      const a = bins[Math.floor((b.t - from) / windowMs)];
-      overall.total++; a.total++;
-      addCoverage(overall, b); addCoverage(a, b);
-      const validRR = plausible(b.rr);
-      if (validRR) {
-        rawPlausible.push(b.rr);
-        const delta = b.rr - rrMean;
-        rrMean += delta / rawPlausible.length;
-        rrM2 += delta * (b.rr - rrMean);
-      } else invalidRR++;
-      const movedBackward = globalPreviousArrival !== null && b.t < globalPreviousArrival;
-      if (a.continuity !== continuity || movedBackward || b.breakBefore || (a.lastArrival !== null && (b.t < a.lastArrival || b.t - a.lastArrival > MAX_RECEIVE_GAP_MS))) a.previous = null;
-      a.continuity = continuity;
-      a.lastArrival = b.t;
-      globalPreviousArrival = b.t;
-      if (!b.ok || !validRR || b.contact === false) {
-        overall.rejected++; a.rejected++; a.previous = null;
-        continue;
-      }
-      if (a.previous !== null) {
-        const difference = b.rr - a.previous;
-        a.sumSq += difference * difference;
-        a.pairs++;
-      }
-      a.previous = b.rr;
-    }
-
-    let sum = 0, min = Infinity, max = -Infinity, valid = 0, complete = 0, pooledSq = 0, pooledPairs = 0;
-    const outputBins = bins.map(a => {
-      const full = a.to - a.from === windowMs;
-      if (full) complete++;
-      const share = a.total ? a.rejected / a.total : 0;
-      const covered = coverage(a);
-      const rawRmssd = a.pairs >= MIN_PAIRS ? Math.sqrt(a.sumSq / a.pairs) : null;
-      let status;
-      if (!full) status = 'partial';
-      else if (!a.total) status = 'missing';
-      else if (covered < MIN_COVERAGE) status = 'low_coverage';
-      else if (share > MAX_REJECTED_SHARE) status = 'noisy';
-      else if (rawRmssd === null) status = 'insufficient';
-      else status = 'ok';
-      const rmssd = status === 'ok' ? rawRmssd : null;
-      if (rmssd !== null) { valid++; sum += rmssd; min = Math.min(min, rmssd); max = Math.max(max, rmssd); pooledSq += a.sumSq; pooledPairs += a.pairs; }
-      return { from: a.from, to: a.to, complete: full, total: a.total, rejected: a.rejected,
-        rejectedShare: share, pairs: a.pairs, coverage: covered, rawRmssd, rmssd, status };
-    });
-    const rrStdDev = rawPlausible.length > 1 ? Math.sqrt(Math.max(0, rrM2) / (rawPlausible.length - 1)) : null;
-    const sdOutliers = rrStdDev > 0 ? rawPlausible.filter(rr => Math.abs(rr - rrMean) > SD_THRESHOLD * rrStdDev).length : 0;
-    const covered = coverage(overall);
-    return {
-      from, to, windowMs, bins: outputBins,
-      summary: { mean: valid ? sum / valid : null, min: valid ? min : null, max: valid ? max : null,
-        pooledRmssd: pooledPairs ? Math.sqrt(pooledSq / pooledPairs) : null,
-        valid, complete, partial: count - complete },
-      quality: { received: overall.total, rejected: overall.rejected,
-        rejectedShare: overall.total ? overall.rejected / overall.total : 0,
-        invalidRR, coverage: covered, missingShare: 1 - covered,
-        sdOutliers, sdOutlierShare: rawPlausible.length ? sdOutliers / rawPlausible.length : 0,
-        sdSampleCount: rawPlausible.length, rrMean: rawPlausible.length ? rrMean : null,
-        rrStdDev, sdThreshold: SD_THRESHOLD }
-    };
-  }
-
-  const api = { analyzeRange, RR_MIN_MS, RR_MAX_MS, MIN_PAIRS, MAX_RECEIVE_GAP_MS,
-    MIN_COVERAGE, MAX_REJECTED_SHARE, MAX_BINS, SD_THRESHOLD, WINDOWS };
-  if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  if (root) root.H10RangeCore = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this);
-
-
-
-(function(root) {
-'use strict';
-// Descriptive RR-pattern flags only. These thresholds have no diagnostic validation.
-const MIN_RR=300, MAX_RR=2000, HISTORY=9, MIN_HISTORY=5, GAP_MS=5000, DEVIATION=0.20;
-function median(xs) { const a=xs.slice().sort((x,y)=>x-y), m=a.length>>1; return a.length ? a.length%2?a[m]:(a[m-1]+a[m])/2 : null; }
-function reviewRhythm(beats,from,to) {
- if(!Number.isFinite(from)||!Number.isFinite(to)||to<=from)throw new RangeError('Invalid review period');
- const records=[],events=[];
- let recent=[],previous=null,lastTime=null,segment=0,received=0,assessedPairs=0,warmup=0,contactExcluded=0,outOfRange=0,shortLong=0,longShort=0;
- const marked=new Set();
- function reset(){recent=[];previous=null;lastTime=null;segment++;}
- for(let sourceIndex=0;sourceIndex<beats.length;sourceIndex++){
-  const b=beats[sourceIndex];if(!b)continue;
-  // Boundary markers clear history even when their timestamp lies outside a selected range.
-  if(b.gap){reset();if(Number.isFinite(b.t)&&b.t>=from&&b.t<to)records.push({...b,sourceIndex,segment});continue;}
-  if(!Number.isFinite(b.t)||b.t<from||b.t>=to)continue;
-  if(b.breakBefore||lastTime!==null&&(b.t<lastTime||b.t-lastTime>GAP_MS))reset();
-  const r={...b,sourceIndex,segment};records.push(r);received++;
-  if(b.contact===false){contactExcluded++;reset();continue;}
-  lastTime=b.t;
-  if(!Number.isFinite(b.rr)||b.rr<MIN_RR||b.rr>MAX_RR){
-   outOfRange++;events.push({id:events.length,type:'outside_range',t:b.t,first:r,second:null,reference:null,firstDeviation:null,secondDeviation:null});marked.add(sourceIndex);reset();continue;
-  }
-  if(previous&&previous.reference!=null){
-   assessedPairs++;
-   const reference=previous.reference;
-   const firstDeviation=(previous.record.rr-reference)/reference,secondDeviation=(r.rr-reference)/reference;
-   let type=null;
-   if(firstDeviation < -DEVIATION && secondDeviation > DEVIATION)type='short_long';
-   else if(firstDeviation > DEVIATION && secondDeviation < -DEVIATION)type='long_short';
-   if(type){events.push({id:events.length,type,t:previous.record.t,first:previous.record,second:r,reference,firstDeviation,secondDeviation});marked.add(previous.record.sourceIndex);marked.add(sourceIndex);if(type==='short_long')shortLong++;else longShort++;}
-  }
-  const reference=recent.length>=MIN_HISTORY?median(recent):null;
-  if(reference===null)warmup++;
-  previous={record:r,reference};recent.push(r.rr);if(recent.length>HISTORY)recent.shift();
- }
- return {from,to,records,events,parameters:{minRr:MIN_RR,maxRr:MAX_RR,history:HISTORY,minHistory:MIN_HISTORY,maxReceiveGapMs:GAP_MS,deviation:DEVIATION},
-  summary:{received,assessedPairs,warmup,shortLong,longShort,outOfRange,contactExcluded,uniqueMarkedIntervals:marked.size}};
-}
-function eventContext(result,eventId,spanMs=20000) {
- if(!result||!Number.isFinite(spanMs)||spanMs<=0)return null;
- const event=result.events.find(e=>e.id===eventId)||null;
- const center=event?(event.first.t+(event.second?.t??event.first.t))/2:result.records.filter(r=>!r.gap).at(-1)?.t;
- if(!Number.isFinite(center))return {from:result.from,to:Math.max(result.from+1,result.to),event:null,records:[]};
- const from=Math.max(result.from,center-spanMs/2),to=Math.min(result.to,Math.max(from+1,center+spanMs/2));
- return {from,to,event,records:result.records.filter(r=>r.t>=from&&r.t<to)};
-}
-const api={reviewRhythm,eventContext,MIN_RR,MAX_RR,HISTORY,MIN_HISTORY,GAP_MS,DEVIATION};
-if(typeof module!=='undefined'&&module.exports)module.exports=api;
-if(root)root.H10RhythmCore=api;
-})(typeof globalThis!=='undefined'?globalThis:this);
-
 const $ = id => document.getElementById(id);
 const els = {
   status: $('status'), hr: $('hrValue'), hrv: $('hrvValue'), hrvDetail: $('hrvDetail'), next: $('next'),
@@ -679,21 +391,12 @@ const els = {
   interval: $('interval'), window: $('window'), voice: $('voice'), rate: $('rate'), brief: $('brief'),
   mode: $('mode'), lang: $('lang'), voiceHint: $('voiceHint'),
   history: $('historyBody'), sessionInfo: $('sessionInfo'), download: $('downloadBtn'),
-  rangeFrom: $('rangeFrom'), rangeTo: $('rangeTo'), rangeWindow: $('rangeWindow'),
-  rangeRun: $('rangeRun'), rangeAll: $('rangeAll'), rangeExport: $('rangeExport'), rangeMessage: $('rangeMessage'),
-  rangeMean: $('rangeMean'), rangeHigh: $('rangeHigh'), rangeLow: $('rangeLow'),
-  rangeMissing: $('rangeMissing'), rangeRejected: $('rangeRejected'), rangeSd: $('rangeSd'),
-  rangeCounts: $('rangeCounts'), rangeCanvas: $('rangeChart'),
-  symptomBtn: $('symptomBtn'), symptomStatus: $('symptomStatus'), symptomExport: $('symptomExport'),
-  rhythmReview: $('rhythmReview'), rhythmMessage: $('rhythmMessage'), rhythmBadge: $('rhythmBadge'),
-  rhythmShortLong: $('rhythmShortLong'), rhythmLongShort: $('rhythmLongShort'), rhythmOutside: $('rhythmOutside'), rhythmReceived: $('rhythmReceived'),
-  rhythmCounts: $('rhythmCounts'), rhythmCanvas: $('rhythmChart'), rhythmSelection: $('rhythmSelection'), rhythmBody: $('rhythmBody'), rhythmNote: $('rhythmNote'), rhythmMarkerKind: $('rhythmMarkerKind'),
-  rhythmRun: $('rhythmRun'), rhythmExport: $('rhythmExport'), rhythmPrevious: $('rhythmPrevious'), rhythmNext: $('rhythmNext'), rhythmPager: $('rhythmPager')
+  send: $('sendBtn'), clear: $('clearBtn'), sendStatus: $('sendStatus')
 };
 
 const HR_SERVICE = 'heart_rate', HR_CHAR = 'heart_rate_measurement';
 const BATT_SERVICE = 'battery_service', BATT_CHAR = 'battery_level';
-const TRACE_SPAN_MS = 120000, STALE_MS = 5000, MAX_BEATS = 200000, MAX_RECONNECTS = 8;
+const TRACE_SPAN_MS = 120000, STALE_MS = 5000, MAX_BEATS = 400000, MAX_RECONNECTS = 8;
 
 const state = {
   device: null, characteristic: null, connected: false, connecting: false, userDisconnect: false,
@@ -781,12 +484,13 @@ function applyUrlSettings() {
     if (v != null && Array.from(els[id].options || []).some(o => o.value === v)) els[id].value = v;
   }
   if (q.get('brief') === '1') els.brief.checked = true;
+  else if (q.get('brief') === '0') els.brief.checked = false;
 }
 function saveUrlSettings() {
   try {
     const q = new URLSearchParams();
     for (const [key, id] of Object.entries(URL_KEYS)) q.set(key, els[id].value);
-    if (els.brief.checked) q.set('brief', '1');
+    q.set('brief', els.brief.checked ? '1' : '0');
     history.replaceState(null, '', `${location.pathname}?${q.toString()}`);
   } catch (_) { /* preview frames may block this; settings still work for this visit */ }
 }
@@ -876,10 +580,10 @@ function updateConnectedStatus() {
 }
 
 function startSession() {
-  if (!state.sessionStart) state.sessionStart = Date.now();
+  if (!state.sessionStart) { state.sessionStart = Date.now(); store.saveMeta(); }
+  enableDataButtons();
   state.lastReadingAt = Date.now();
   els.traceEmpty.hidden = true;
-  els.download.disabled = false;
   if (!state.ticker) state.ticker = setInterval(tick, 1000);
   tick();
 }
@@ -894,7 +598,9 @@ function onMeasurement(event) {
   state.contact = m.contact;
   state.lastHr = (m.contact === false || !m.hr) ? null : m.hr;
   for (const rr of m.rr) {
-    state.beats.push({ t: now, rr, ok: m.contact === false ? false : state.filter.test(rr), contact: m.contact });
+    const beat = { t: now, rr, ok: m.contact === false ? false : state.filter.test(rr), contact: m.contact };
+    state.beats.push(beat);
+    store.queue('beats', beat);
   }
   if (state.beats.length > MAX_BEATS) state.beats.splice(0, state.beats.length - MAX_BEATS);
   if (contactChanged || state.staleShown) { state.staleShown = false; updateConnectedStatus(); }
@@ -906,7 +612,9 @@ function onDisconnected() {
   state.connected = false;
   state.lastHr = null;
   state.contact = null;
-  state.beats.push({ t: Date.now(), rr: null, ok: false, gap: true });
+  const gapMark = { t: Date.now(), rr: null, ok: false, gap: true };
+  state.beats.push(gapMark);
+  store.queue('beats', gapMark);
   state.filter.reset();
   renderLive(Date.now());
   if (state.userDisconnect) { setDisconnectedUI('已中斷連線'); return; }
@@ -1015,10 +723,9 @@ function renderHistory() {
 
 function addReading(r) {
   state.readings.push(r);
+  store.queue('readings', r);
   renderHistory();
-  const beatCount = state.beats.reduce((n, b) => n + (b.gap ? 0 : 1), 0);
-  const n = state.readings.length;
-  els.sessionInfo.textContent = `已記錄 ${n} 筆讀值、${beatCount} 筆心搏資料`;
+  updateSessionInfo();
 }
 
 function tick() {
@@ -1188,250 +895,160 @@ function releaseWakeLock() {
 }
 
 /* ---------- CSV ---------- */
-function downloadCsv() {
+function csvStamp() { return new Date(state.sessionStart || Date.now()).toISOString().slice(0, 16).replace(/[-:T]/g, ''); }
+function beatsCsv() {
   const lines = ['時間_ISO,心搏間期_毫秒,是否採用,事件'];
   for (const b of state.beats) {
     const iso = new Date(b.t).toISOString();
-    lines.push(b.gap ? `${iso},,,斷線` : `${iso},${b.rr.toFixed(1)},${b.ok ? 1 : 0},`);
+    lines.push(b.gap ? `${iso},,,斷線` : `${iso},${Number(b.rr).toFixed(1)},${b.ok ? 1 : 0},`);
   }
-  const blob = new Blob(['\uFEFF' + lines.join('\n') + '\n'], { type: 'text/csv;charset=utf-8' });
+  return '\uFEFF' + lines.join('\n') + '\n';
+}
+function readingsCsv() {
+  const lines = ['時間_ISO,心率_bpm,HRV_RMSSD_毫秒,排除心搏比例'];
+  for (const r of state.readings) {
+    lines.push(`${new Date(r.t).toISOString()},${r.hr != null ? Math.round(r.hr) : ''},${r.rmssd != null ? r.rmssd.toFixed(1) : ''},${r.rejectedShare != null ? r.rejectedShare.toFixed(3) : ''}`);
+  }
+  return '\uFEFF' + lines.join('\n') + '\n';
+}
+function saveBlob(blob, name) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const stamp = new Date(state.sessionStart || Date.now()).toISOString().slice(0, 16).replace(/[-:T]/g, '');
-  a.href = url;
-  a.download = `H10-心搏資料-${stamp}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+function downloadCsv() {
+  saveBlob(new Blob([beatsCsv()], { type: 'text/csv;charset=utf-8' }), `H10-心搏資料-${csvStamp()}.csv`);
+}
+
+/* ---------- send data ---------- */
+const SEND_TO = 'itochang123@yahoo.com';
+async function sendData() {
+  if (!state.beats.length && !state.readings.length) { els.sendStatus.textContent = '尚無資料可傳送。'; return; }
+  const stamp = csvStamp();
+  const when = new Date().toLocaleString('zh-TW', { hour12: false });
+  const subject = `H10 資料 ${when}`;
+  const type = 'text/csv';
+  const names = [`H10-心搏資料-${stamp}.csv`, `H10-讀值紀錄-${stamp}.csv`];
+  const blobs = [new Blob([beatsCsv()], { type }), new Blob([readingsCsv()], { type })];
+  let files = null;
+  try { files = names.map((n, i) => new File([blobs[i]], n, { type })); } catch (_) { files = null; }
+  if (files && navigator.canShare && navigator.share) {
+    let ok = false;
+    try { ok = navigator.canShare({ files }); } catch (_) { ok = false; }
+    if (ok) {
+      try {
+        await navigator.share({ files, title: subject, text: `${subject}\n請寄到 ${SEND_TO}` });
+        els.sendStatus.textContent = `已開啟分享選單。請選擇 Gmail 等郵件程式，收件人填 ${SEND_TO}。`;
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') { els.sendStatus.textContent = '已取消分享。'; return; }
+        // fall through to download + mailto
+      }
+    }
+  }
+  names.forEach((n, i) => saveBlob(blobs[i], n));
+  const body = `附上 H10 資料（${state.readings.length} 筆讀值）。\n\n請將剛剛下載的兩個檔案附加到這封郵件：\n${names.join('\n')}`;
+  els.sendStatus.textContent = `已下載 ${names.join('、')}。請在開啟的郵件中附加這兩個檔案後寄出。`;
+  setTimeout(() => { location.href = `mailto:${SEND_TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`; }, 800);
+}
+
+/* ---------- local persistence (IndexedDB) ---------- */
+const store = (() => {
+  const pending = { beats: [], readings: [] };
+  let dbp = null;
+  function open() {
+    if (dbp) return dbp;
+    dbp = new Promise((resolve) => {
+      if (!('indexedDB' in window)) { resolve(null); return; }
+      let req;
+      try { req = indexedDB.open('h10-hcb', 1); } catch (_) { resolve(null); return; }
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        for (const n of ['beats', 'readings']) if (!db.objectStoreNames.contains(n)) db.createObjectStore(n, { autoIncrement: true });
+        if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta');
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+      req.onblocked = () => resolve(null);
+    });
+    return dbp;
+  }
+  function done(tx) { return new Promise(r => { tx.oncomplete = () => r(true); tx.onerror = tx.onabort = () => r(false); }); }
+  async function flush() {
+    if (!pending.beats.length && !pending.readings.length) return;
+    const db = await open(); if (!db) return;
+    const batch = { beats: pending.beats.splice(0), readings: pending.readings.splice(0) };
+    try {
+      const tx = db.transaction(['beats', 'readings'], 'readwrite');
+      for (const n of ['beats', 'readings']) { const os = tx.objectStore(n); for (const x of batch[n]) os.add(x); }
+      if (!(await done(tx))) { pending.beats.unshift(...batch.beats); pending.readings.unshift(...batch.readings); }
+    } catch (_) { pending.beats.unshift(...batch.beats); pending.readings.unshift(...batch.readings); }
+  }
+  async function saveMeta() {
+    const db = await open(); if (!db) return;
+    try { const tx = db.transaction('meta', 'readwrite'); tx.objectStore('meta').put(state.sessionStart, 'sessionStart'); await done(tx); } catch (_) {}
+  }
+  async function load() {
+    const db = await open(); if (!db) return null;
+    try {
+      const tx = db.transaction(['beats', 'readings', 'meta'], 'readonly');
+      const get = (n, k) => new Promise(r => { const q = k === undefined ? tx.objectStore(n).getAll() : tx.objectStore(n).get(k); q.onsuccess = () => r(q.result); q.onerror = () => r(undefined); });
+      const [beats, readings, sessionStart] = await Promise.all([get('beats'), get('readings'), get('meta', 'sessionStart')]);
+      return { beats: beats || [], readings: readings || [], sessionStart: sessionStart || null };
+    } catch (_) { return null; }
+  }
+  async function clear() {
+    pending.beats.length = 0; pending.readings.length = 0;
+    const db = await open(); if (!db) return;
+    try { const tx = db.transaction(['beats', 'readings', 'meta'], 'readwrite'); for (const n of ['beats', 'readings', 'meta']) tx.objectStore(n).clear(); await done(tx); } catch (_) {}
+  }
+  return { queue: (n, x) => { pending[n].push(x); }, flush, saveMeta, load, clear };
+})();
+setInterval(() => { store.flush(); }, 10000);
+window.addEventListener('pagehide', () => { store.flush(); });
+
+function enableDataButtons() {
+  const has = state.beats.length > 0 || state.readings.length > 0 || state.sessionStart != null;
+  els.download.disabled = els.send.disabled = els.clear.disabled = !has;
+}
+function updateSessionInfo() {
+  const beatCount = state.beats.reduce((n, b) => n + (b.gap ? 0 : 1), 0);
+  els.sessionInfo.textContent = `已記錄 ${state.readings.length} 筆讀值、${beatCount} 筆心搏資料`;
+}
+async function restoreData() {
+  const saved = await store.load();
+  if (!saved || (!saved.beats.length && !saved.readings.length)) return;
+  // A page reload is a break in the beat stream.
+  state.beats = saved.beats.concat(state.beats);
+  if (saved.beats.length) { const g = { t: Date.now(), rr: null, ok: false, gap: true }; state.beats.push(g); store.queue('beats', g); }
+  state.readings = saved.readings.concat(state.readings);
+  state.sessionStart = saved.sessionStart || (saved.beats[0] && saved.beats[0].t) || state.sessionStart;
+  renderedReadingCount = 0;
+  renderHistory();
+  updateSessionInfo();
+  enableDataButtons();
+  els.sendStatus.textContent = '已還原先前儲存的資料。';
+}
+async function clearData() {
+  if (!confirm('確定要清除所有已記錄的心搏與讀值資料嗎？此動作無法復原。')) return;
+  await store.clear();
+  state.beats = []; state.readings = []; state.sessionStart = state.connected ? Date.now() : null;
+  if (state.sessionStart) store.saveMeta();
+  state.filter.reset();
+  renderedReadingCount = 0;
+  els.history.innerHTML = '<tr><td class="empty" colspan="4">每次定時量測的讀值會顯示在這裡。</td></tr>';
+  els.sessionInfo.textContent = '';
+  els.sendStatus.textContent = '資料已清除。';
+  enableDataButtons();
+  renderLive(Date.now());
 }
 
 function showUnsupported() {
   setStatus('這個瀏覽器不支援藍牙連線。電腦或 Android 手機請使用 Chrome 或 Edge；iPhone 請使用 Bluefy 瀏覽器。', true);
   els.connect.disabled = true;
 }
-
-/* ---------- selected time-range analysis ---------- */
-const rangeState = { result: null, snapshotAt: null };
-function rangeLocalTime(ms) {
-  const d = new Date(ms), pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-function rangeMessage(text, alert = false) {
-  els.rangeMessage.textContent = text;
-  els.rangeMessage.classList.toggle('alert', alert);
-}
-function clearRangeResult(message = '尚未分析。', alert = false) {
-  clearRhythmReview();
-  rangeState.result = null; rangeState.snapshotAt = null;
-  for (const el of [els.rangeMean, els.rangeHigh, els.rangeLow, els.rangeMissing, els.rangeRejected, els.rangeSd]) el.textContent = '--';
-  els.rangeCounts.textContent = '';
-  els.rangeExport.disabled = true;
-  rangeMessage(message, alert);
-  drawRangeChart();
-}
-function fillRangeFromData() {
-  let first = Infinity, last = -Infinity;
-  for (const b of state.beats) {
-    if (b.gap || !Number.isFinite(b.t)) continue;
-    first = Math.min(first, b.t); last = Math.max(last, b.t);
-  }
-  if (!Number.isFinite(first)) { clearRangeResult('尚無心搏資料，請先連接胸帶並開始收集。', true); return false; }
-  // Round outwards to whole local seconds so the picker includes the edge packets.
-  els.rangeFrom.value = rangeLocalTime(Math.floor(first / 1000) * 1000);
-  els.rangeTo.value = rangeLocalTime(Math.ceil((Math.max(last, state.connected ? Date.now() : last) + 1) / 1000) * 1000);
-  return true;
-}
-function useAllRangeData() {
-  if (fillRangeFromData()) runRangeAnalysis();
-}
-function runRangeAnalysis() {
-  if (!els.rangeFrom.value && !els.rangeTo.value && !fillRangeFromData()) return;
-  const from = new Date(els.rangeFrom.value).getTime(), to = new Date(els.rangeTo.value).getTime();
-  if (!Number.isFinite(from) || !Number.isFinite(to)) { clearRangeResult('請輸入完整的開始與結束日期時間。', true); return; }
-  if (to <= from) { clearRangeResult('結束時間必須晚於開始時間；跨越午夜時請選擇隔天日期。', true); return; }
-  let result;
-  try { result = globalThis.H10RangeCore.analyzeRange(state.beats, from, to, Number(els.rangeWindow.value) * 1000); }
-  catch (_) { clearRangeResult('無法分析此時段。請縮短範圍並選擇有效的計算視窗。', true); return; }
-  rangeState.result = result; rangeState.snapshotAt = Date.now();
-  const ms = x => x == null ? '--' : x.toFixed(1);
-  const pct = x => `${(x * 100).toFixed(1)}%`;
-  const q = result.quality, summary = result.summary;
-  els.rangeMean.textContent = ms(summary.mean); els.rangeHigh.textContent = ms(summary.max); els.rangeLow.textContent = ms(summary.min);
-  els.rangeMissing.textContent = pct(q.missingShare);
-  els.rangeRejected.textContent = q.received ? pct(q.rejectedShare) : '--';
-  els.rangeSd.textContent = q.sdSampleCount >= 2 ? pct(q.sdOutlierShare) : '--';
-  const dateTime = t => new Date(t).toLocaleString('zh-TW', { hour12: false });
-  const label = summary.valid ? `已分析 ${dateTime(from)} 至 ${dateTime(to)}。` : q.received ? '此時段沒有通過品質檢查的完整 HRV 視窗。' : '此時段沒有保留的心搏資料。';
-  rangeMessage(label, !summary.valid);
-  const sd = q.rrStdDev == null ? '--' : q.rrStdDev.toFixed(1);
-  els.rangeCounts.textContent = `每筆 ${result.windowMs / 1000} 秒；有效 ${summary.valid} / ${summary.complete} 個完整視窗，尾端不完整 ${summary.partial} 個。收到 ${q.received} 筆心搏，已排除 ${q.rejected} 筆，其中 ${q.invalidRR} 筆超出合理範圍；±3SD 離群 ${q.sdOutliers} 筆（樣本 SD ${sd} 毫秒）。`;
-  els.rangeExport.disabled = false;
-  drawRangeChart();
-  runRhythmReview(from, to);
-}
-function drawRangeChart() {
-  const canvas = els.rangeCanvas, ctx = canvas.getContext('2d');
-  const w = canvas.clientWidth, h = canvas.clientHeight;
-  if (!ctx || !w || !h) return;
-  const dpr = window.devicePixelRatio || 1, pw = Math.round(w*dpr), ph = Math.round(h*dpr);
-  if (canvas.width !== pw || canvas.height !== ph) { canvas.width = pw; canvas.height = ph; }
-  ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
-  const plot = {left:42,right:w-16,top:28,bottom:h-47};
-  const r = rangeState.result, ink = cssVar('--ink-soft'), pen = cssVar('--pen');
-  const font = cssVar('--font-ui');
-  let max = 100;
-  if (r) for (const b of r.bins) if (b.rmssd != null) max = Math.max(max, b.rmssd * 1.12);
-  max = Math.ceil(max / 25) * 25;
-  const Y = value => plot.bottom - value / max * (plot.bottom-plot.top);
-  const X = t => plot.left + (t - r.from) / (r.to-r.from) * (plot.right-plot.left);
-  ctx.font = `12px ${font}`; ctx.fillStyle = ink; ctx.strokeStyle = cssVar('--line'); ctx.lineWidth = 0.75; ctx.textBaseline = 'middle';
-  for (let i=0;i<=4;i++) {
-    const value = max*i/4, y = Y(value);
-    ctx.beginPath();ctx.moveTo(plot.left,y);ctx.lineTo(plot.right,y);ctx.stroke();
-    ctx.textAlign='right';ctx.fillText(value.toFixed(value%1?1:0),plot.left-7,y);
-  }
-  ctx.strokeStyle=ink;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(plot.left,plot.top);ctx.lineTo(plot.left,plot.bottom);ctx.lineTo(plot.right,plot.bottom);ctx.stroke();
-  ctx.textAlign='left';ctx.fillText('HRV（毫秒）',0,12);
-  ctx.textAlign='center';ctx.fillText('本機時間', (plot.left+plot.right)/2, h-9);
-  if (!r) { canvas.setAttribute('aria-label','尚未分析選定時段；橫軸為本機時間，縱軸為 HRV 毫秒'); ctx.fillText('選擇時段後顯示 HRV 趨勢', (plot.left+plot.right)/2, (plot.top+plot.bottom)/2); return; }
-  const format = t => new Date(t).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',second:r.to-r.from<=600000?'2-digit':undefined,hour12:false});
-  for (let i=0;i<=3;i++) { const t=r.from+(r.to-r.from)*i/3;ctx.textAlign=i===0?'left':i===3?'right':'center';ctx.fillText(format(t),X(t),plot.bottom+18); }
-  ctx.textAlign='center';
-  ctx.save();ctx.beginPath();ctx.rect(plot.left,plot.top,plot.right-plot.left,plot.bottom-plot.top);ctx.clip();
-  ctx.strokeStyle=pen;ctx.fillStyle=pen;ctx.lineWidth=2;ctx.lineJoin='round';ctx.beginPath();let connected=false;
-  for(const b of r.bins) { if (b.rmssd == null) { connected=false; continue; } const x=X(b.to),y=Y(b.rmssd);if(connected)ctx.lineTo(x,y);else ctx.moveTo(x,y);connected=true; }
-  ctx.stroke();
-  for(const b of r.bins) if(b.rmssd!=null){ctx.beginPath();ctx.arc(X(b.to),Y(b.rmssd),2.8,0,Math.PI*2);ctx.fill();}
-  ctx.restore();
-  if(!r.summary.valid){ctx.fillStyle=ink;ctx.fillText('沒有有效的完整 HRV 視窗', (plot.left+plot.right)/2, (plot.top+plot.bottom)/2);}
-  canvas.setAttribute('aria-label',`選定時段的 HRV 趨勢；${r.summary.valid} 個有效視窗，橫軸為本機時間，縱軸為 HRV 毫秒，資料不足的區間留白`);
-}
-function downloadRangeCsv() {
-  const r=rangeState.result;if(!r)return;
-  const iso=t=>new Date(t).toISOString();
-  const lines=['range_start_iso,range_end_iso,window_seconds,bin_start_iso,bin_end_iso,complete,rmssd_ms,raw_rmssd_ms,coverage_estimate,total_beats,rejected_beats,pairs,status'];
-  for(const b of r.bins)lines.push([iso(r.from),iso(r.to),r.windowMs/1000,iso(b.from),iso(b.to),Number(b.complete),b.rmssd??'',b.rawRmssd??'',b.coverage,b.total,b.rejected,b.pairs,b.status].join(','));
-  const blob=new Blob(['\uFEFF'+lines.join('\n')+'\n'],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
-  const stamp=new Date(r.from).toISOString().slice(0,19).replace(/[-:T]/g,'');
-  a.href=url;a.download=`H10-HRV-range-${stamp}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
-}
-
-
-/* ---------- descriptive rhythm review; never a diagnosis ---------- */
-const rhythmState={result:null,symptoms:[],selected:null,page:0};
-const RHYTHM_LABELS={short_long:'短 → 長',long_short:'長 → 短',outside_range:'超出程式比較範圍'};
-function rhythmTime(t){return new Date(t).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});}
-function rhythmMessage(text){els.rhythmMessage.textContent=text;}
-function updateMarkerKind(){
- const felt=els.rhythmMarkerKind.value==='felt_symptom';
- els.symptomBtn.textContent=felt?'標記身體感覺':'標記圖上變化';
- els.rhythmNote.placeholder=felt?'例如：休息時突然感到心悸':'例如：看到一短一長的間期';
-}
-function markerLabel(kind){return kind==='graph_observation'?'手動圖上觀察':kind==='felt_symptom'?'手動身體感覺':'手動標記（類型未記錄）';}
-function markSymptom(){
- if(!state.sessionStart){els.symptomStatus.textContent='請先連接胸帶，開始收集後再標記。';return;}
- const kind=els.rhythmMarkerKind.value==='felt_symptom'?'felt_symptom':'graph_observation';
- const note=els.rhythmNote.value.trim().slice(0,160)||(kind==='felt_symptom'?'心悸感覺':'圖上間期變化（未表示身體有症狀）');
- const marker={t:Date.now(),kind,note,connected:state.connected,contact:state.contact,lastPacketAt:state.lastPacketAt||null};
- rhythmState.symptoms.push(marker);els.symptomExport.disabled=false;
- els.symptomStatus.textContent=`已手動標記 ${rhythmTime(marker.t)}：${markerLabel(marker.kind)}。請匯出標記；需要重新分析時段才會更新回顧清單。`;
- els.rhythmNote.value='';
-}
-function clearRhythmReview(){
- rhythmState.result=null;rhythmState.selected=null;rhythmState.page=0;
- for(const e of [els.rhythmShortLong,els.rhythmLongShort,els.rhythmOutside,els.rhythmReceived])e.textContent='--';
- els.rhythmBadge.textContent='尚未回顧';els.rhythmCounts.textContent='';els.rhythmSelection.textContent='';
- els.rhythmBody.innerHTML='<tr><td colspan="5">請使用上方的「分析這個時段」或「使用目前全部資料」。</td></tr>';
- els.rhythmPager.textContent='';els.rhythmPrevious.disabled=els.rhythmNext.disabled=els.rhythmExport.disabled=true;
- rhythmMessage('使用上方選定時段，檢視原始 RR 的相鄰間期變化。');
- drawRhythmContext();
-}
-function runRhythmReview(from,to){
- const r=globalThis.H10RhythmCore.reviewRhythm(state.beats,from,to);
- r.symptoms=rhythmState.symptoms.filter(m=>m.t>=from&&m.t<to).map(m=>({...m}));
- rhythmState.result=r;rhythmState.page=0;rhythmState.selected=r.events.length?r.events[r.events.length-1].id:null;
- const s=r.summary;
- els.rhythmShortLong.textContent=String(s.shortLong);els.rhythmLongShort.textContent=String(s.longShort);
- els.rhythmOutside.textContent=String(s.outOfRange);els.rhythmReceived.textContent=String(s.received);
- els.rhythmBadge.textContent=`${s.shortLong+s.longShort} 個配對，${s.outOfRange} 筆範圍外 RR`;
- const period=`${new Date(from).toLocaleString('zh-TW',{hour12:false})} 至 ${new Date(to).toLocaleString('zh-TW',{hour12:false})}`;
- rhythmMessage(!s.received?'此時段沒有保留的 RR 資料。':`已回顧 ${period}。這些是原始間期型態標記，尚未經 ECG 確認。`);
- els.rhythmCounts.textContent=`可比較相鄰配對 ${s.assessedPairs} 組；${s.contactExcluded} 筆已知接觸不良輸入未自動配對；手動標記 ${r.symptoms.length} 筆（圖上 ${r.symptoms.filter(m=>m.kind==='graph_observation').length}，身體感覺 ${r.symptoms.filter(m=>m.kind==='felt_symptom').length}）。配對可共享間期，不能換算為早期收縮次數或比例。0 個標記不排除心律問題。`;
- els.rhythmExport.disabled=false;renderRhythmEvents();drawRhythmContext();
-}
-function renderRhythmEvents(){
- const r=rhythmState.result;if(!r)return;
- const items=r.events.map(e=>({t:e.t,event:e})).concat(r.symptoms.map(m=>({t:m.t,marker:m}))).sort((a,b)=>b.t-a.t);
- const perPage=50,lastPage=Math.max(0,Math.ceil(items.length/perPage)-1);rhythmState.page=Math.max(0,Math.min(lastPage,rhythmState.page));
- els.rhythmBody.innerHTML='';
- if(!items.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=5;td.textContent='未找到符合此比較規則的標記；不表示沒有心律問題。';tr.appendChild(td);els.rhythmBody.appendChild(tr);}
- for(const item of items.slice(rhythmState.page*perPage,(rhythmState.page+1)*perPage)){
-  const tr=document.createElement('tr');
-  const e=item.event,rr=x=>Number.isFinite(x)?`${x.toFixed(0)} ms`:'無法表示';
-  const label=e?RHYTHM_LABELS[e.type]:markerLabel(item.marker.kind);
-  const intervals=e?rr(e.first.rr)+(e.second?` → ${rr(e.second.rr)}`:''):item.marker.note;
-  const ref=e&&e.reference!=null?`${Math.round(e.reference)} ms`:'--';
-  for(const text of [rhythmTime(item.t),label,intervals,ref]){const td=document.createElement('td');td.textContent=text;tr.appendChild(td);}
-  const action=document.createElement('td');
-  if(e){const button=document.createElement('button');button.type='button';button.textContent='查看';button.addEventListener('click',()=>{rhythmState.selected=e.id;drawRhythmContext();});action.appendChild(button);}
-  else action.textContent='非自動偵測';
-  tr.appendChild(action);els.rhythmBody.appendChild(tr);
- }
- els.rhythmPager.textContent=items.length?`${rhythmState.page+1} / ${lastPage+1} 頁，共 ${items.length} 個標記`:'0 個標記';
- els.rhythmPrevious.disabled=rhythmState.page===0;els.rhythmNext.disabled=rhythmState.page===lastPage;
-}
-function drawRhythmContext(){
- const canvas=els.rhythmCanvas,ctx=canvas.getContext('2d'),w=canvas.clientWidth,h=canvas.clientHeight;if(!ctx||!w||!h)return;
- const dpr=window.devicePixelRatio||1,pw=Math.round(w*dpr),ph=Math.round(h*dpr);if(canvas.width!==pw||canvas.height!==ph){canvas.width=pw;canvas.height=ph;}
- ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
- ctx.fillStyle=cssVar('--ink-soft');ctx.font=`12px ${cssVar('--font-ui')}`;ctx.textBaseline='middle';ctx.textAlign='center';
- const r=rhythmState.result,c=r?globalThis.H10RhythmCore.eventContext(r,rhythmState.selected):null;
- if(!c||!c.records.length){ctx.fillText('選定時段後可查看原始 RR；這不是 ECG。',w/2,h/2);els.rhythmSelection.textContent='';canvas.setAttribute('aria-label','尚無原始 RR 回顧圖；本圖不是 ECG');return;}
- const p={left:45,right:w-16,top:28,bottom:h-45};
- const values=c.records.filter(b=>!b.gap&&Number.isFinite(b.rr)).map(b=>b.rr);
- let low=values.length?Infinity:600,high=values.length?-Infinity:1200;for(const value of values){low=Math.min(low,value);high=Math.max(high,value);}
- if(c.event?.reference!=null){low=Math.min(low,c.event.reference*.8);high=Math.max(high,c.event.reference*1.2);}
- const pad=Math.max(50,(high-low)*.15);low=Math.max(0,Math.floor((low-pad)/50)*50);high=Math.ceil((high+pad)/50)*50;if(high<=low)high=low+100;
- const X=t=>p.left+(t-c.from)/(c.to-c.from)*(p.right-p.left),Y=v=>p.bottom-(v-low)/(high-low)*(p.bottom-p.top);
- ctx.strokeStyle=cssVar('--line');ctx.lineWidth=.75;
- for(let i=0;i<=3;i++){const v=low+(high-low)*i/3,y=Y(v);ctx.beginPath();ctx.moveTo(p.left,y);ctx.lineTo(p.right,y);ctx.stroke();ctx.textAlign='right';ctx.fillText(String(Math.round(v)),p.left-7,y);}
- ctx.strokeStyle=cssVar('--ink-soft');ctx.beginPath();ctx.moveTo(p.left,p.top);ctx.lineTo(p.left,p.bottom);ctx.lineTo(p.right,p.bottom);ctx.stroke();
- ctx.textAlign='left';ctx.fillText('原始 RR（毫秒）',0,12);ctx.textAlign='center';ctx.fillText('通知收到時間', (p.left+p.right)/2,h-9);
- for(let i=0;i<=2;i++){ctx.textAlign=i===0?'left':i===2?'right':'center';ctx.fillText(rhythmTime(c.from+(c.to-c.from)*i/2),p.left+(p.right-p.left)*i/2,p.bottom+18);}
- ctx.save();ctx.beginPath();ctx.rect(p.left,p.top,p.right-p.left,p.bottom-p.top);ctx.clip();
- if(c.event?.reference!=null){ctx.strokeStyle=cssVar('--pen');ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(p.left,Y(c.event.reference));ctx.lineTo(p.right,Y(c.event.reference));ctx.stroke();ctx.setLineDash([]);}
- ctx.strokeStyle=cssVar('--trace');ctx.lineWidth=1.6;ctx.beginPath();let prev=null;
- for(const b of c.records){if(b.gap||b.contact===false||!Number.isFinite(b.rr)){prev=null;continue;}const x=X(b.t),y=Y(b.rr);if(prev&&b.segment===prev.segment&&b.t>=prev.t&&b.t-prev.t<=5000)ctx.lineTo(x,y);else ctx.moveTo(x,y);prev=b;}ctx.stroke();
- for(const b of c.records){if(b.gap||!Number.isFinite(b.rr))continue;const flagged=c.event&&(b.sourceIndex===c.event.first.sourceIndex||b.sourceIndex===c.event.second?.sourceIndex);ctx.beginPath();ctx.arc(X(b.t),Y(b.rr),flagged?4.5:2.5,0,Math.PI*2);ctx.strokeStyle=flagged?cssVar('--pen'):cssVar('--ink-soft');ctx.fillStyle=flagged?cssVar('--pen'):cssVar('--trace');if(flagged||b.ok)ctx.fill();else ctx.stroke();}
- ctx.restore();
- const e=c.event;
- els.rhythmSelection.textContent=e?`${RHYTHM_LABELS[e.type]}；${rhythmTime(e.first.t)}${e.second?` 至 ${rhythmTime(e.second.t)}`:''}。藍點為本標記；空心點是已被 HRV 排除或未採用的原始 RR；虛線為配對前的參考中位數。`:'本時段最後一小段原始 RR。沒有配對標記不代表正常。';
- canvas.setAttribute('aria-label',els.rhythmSelection.textContent+'；縱軸為 RR 毫秒，橫軸為通知收到時間；不是 ECG');
-}
-function rhythmCsvCell(v){
- if(v==null)return '';
- let s=String(v);if(typeof v==='string'&&/^\s*[=+\-@]/.test(s))s="'"+s;
- return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
-}
-function saveRhythmCsv(name,rows){
- const content='\uFEFF'+rows.map(row=>row.map(rhythmCsvCell).join(',')).join('\n')+'\n';
- const blob=new Blob([content],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
-}
-function downloadRhythmReview(){
- const r=rhythmState.result;if(!r)return;const iso=t=>Number.isFinite(t)?new Date(t).toISOString():'';
- const rows=[['range_from_iso','range_to_iso','kind','first_received_iso','second_received_iso','first_rr_ms','second_rr_ms','reference_median_ms','first_difference_pct','second_difference_pct','first_excluded_from_hrv','second_excluded_from_hrv','note']];
- for(const e of r.events)rows.push([iso(r.from),iso(r.to),e.type,iso(e.first.t),iso(e.second?.t),e.first.rr,e.second?.rr,e.reference,e.firstDeviation==null?'':e.firstDeviation*100,e.secondDeviation==null?'':e.secondDeviation*100,Number(!e.first.ok),e.second?Number(!e.second.ok):'','Descriptive RR flag; not an ECG diagnosis']);
- for(const m of r.symptoms)rows.push([iso(r.from),iso(r.to),m.kind||'manual_unspecified',iso(m.t),'','','','','','','','',m.note]);
- saveRhythmCsv('H10-rhythm-review-'+iso(r.from).slice(0,19).replace(/[-:T]/g,'')+'.csv',rows);
-}
-function downloadSymptoms(){
- if(!rhythmState.symptoms.length)return;
- const rows=[['received_at_iso','marker_kind','note','bluetooth_connected','skin_contact','latest_packet_iso']];
- for(const m of rhythmState.symptoms)rows.push([new Date(m.t).toISOString(),m.kind||'manual_unspecified',m.note,Number(m.connected),m.contact==null?'':Number(m.contact),m.lastPacketAt?new Date(m.lastPacketAt).toISOString():'']);
- saveRhythmCsv('H10-manual-markers.csv',rows);
-}
-
 
 /* ---------- wiring ---------- */
 els.connect.addEventListener('click', () => {
@@ -1448,23 +1065,8 @@ els.test.addEventListener('click', () => {
   speak(phrase(60, { rmssd: 50, rejectedShare: 0 }, { brief: s.brief, mode: s.mode, lang: s.lang, contact: true }));
 });
 els.download.addEventListener('click', downloadCsv);
-els.symptomBtn.addEventListener('click', markSymptom);
-els.rhythmMarkerKind.addEventListener('change', updateMarkerKind);
-els.symptomExport.addEventListener('click', downloadSymptoms);
-els.rhythmRun.addEventListener('click', runRangeAnalysis);
-els.rhythmExport.addEventListener('click', downloadRhythmReview);
-els.rhythmPrevious.addEventListener('click', () => { rhythmState.page--; renderRhythmEvents(); });
-els.rhythmNext.addEventListener('click', () => { rhythmState.page++; renderRhythmEvents(); });
-els.rhythmReview.addEventListener('toggle', drawRhythmContext);
-window.addEventListener('resize', drawRhythmContext);
-els.rangeRun.addEventListener('click', runRangeAnalysis);
-els.rangeAll.addEventListener('click', useAllRangeData);
-els.rangeExport.addEventListener('click', downloadRangeCsv);
-for (const field of [els.rangeFrom, els.rangeTo, els.rangeWindow]) {
-  field.addEventListener('input', () => clearRangeResult('時段或計算範圍已變更，請重新分析。'));
-  field.addEventListener('change', () => clearRangeResult('時段或計算範圍已變更，請重新分析。'));
-}
-window.addEventListener('resize', drawRangeChart);
+els.send.addEventListener('click', sendData);
+els.clear.addEventListener('click', clearData);
 els.interval.addEventListener('change', () => { saveUrlSettings(); tick(); });
 els.window.addEventListener('change', () => { saveUrlSettings(); renderLive(Date.now()); });
 els.lang.addEventListener('change', () => { cancelSpeech(); els.voice.value = ''; loadVoices(); saveUrlSettings(); });
@@ -1472,7 +1074,7 @@ for (const el of [els.mode, els.rate, els.brief]) el.addEventListener('change', 
 window.addEventListener('resize', drawTrace);
 if (window.matchMedia) {
   const mq = window.matchMedia('(prefers-color-scheme: dark)');
-  if (mq.addEventListener) { mq.addEventListener('change', drawTrace); mq.addEventListener('change', drawRangeChart); mq.addEventListener('change', drawRhythmContext); }
+  if (mq.addEventListener) { mq.addEventListener('change', drawTrace); }
 }
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
@@ -1481,10 +1083,8 @@ document.addEventListener('visibilitychange', () => {
 });
 
 applyUrlSettings();
-updateMarkerKind();
+restoreData();
 drawTrace();
-drawRangeChart();
-drawRhythmContext();
 if (synth) {
   loadVoices();
   if (synth.addEventListener) synth.addEventListener('voiceschanged', loadVoices);
