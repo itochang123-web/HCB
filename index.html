@@ -935,8 +935,8 @@ async function sendData() {
     try { ok = navigator.canShare({ files }); } catch (_) { ok = false; }
     if (ok) {
       try {
-        await navigator.share({ files, title: subject, text: `${subject}\n請寄到 ${SEND_TO}` });
-        els.sendStatus.textContent = `已開啟分享選單。請選擇 Gmail 等郵件程式，收件人填 ${SEND_TO}。`;
+        await navigator.share({ files, title: subject, text: subject });
+        els.sendStatus.textContent = '已開啟分享選單。請選擇 Gmail、LINE 或 Gemini 等程式傳送。';
         return;
       } catch (err) {
         if (err && err.name === 'AbortError') { els.sendStatus.textContent = '已取消分享。'; return; }
@@ -945,9 +945,7 @@ async function sendData() {
     }
   }
   names.forEach((n, i) => saveBlob(blobs[i], n));
-  const body = `附上 H10 心搏資料。\n\n請將剛剛下載的檔案附加到這封郵件：\n${names.join('\n')}`;
-  els.sendStatus.textContent = `已下載 ${names.join('、')}。請在開啟的郵件中附加這個檔案後寄出。`;
-  setTimeout(() => { location.href = `mailto:${SEND_TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`; }, 800);
+  els.sendStatus.textContent = `已下載 ${names.join('、')}。請將檔案上傳到郵件、LINE 或 Gemini。`;
 }
 
 /* ---------- local persistence (IndexedDB) ---------- */
