@@ -212,6 +212,7 @@ td.empty { color: var(--ink-soft); }
     <div class="foot">
       <span id="sessionInfo"></span>
       <button id="sendBtn" class="primary" type="button" disabled>傳送資料</button>
+      <button id="copyBtn" type="button" disabled>複製資料</button>
       <button id="clearBtn" type="button" disabled>清除資料</button>
     </div>
     <p id="sendStatus" class="help" role="status"></p>
@@ -390,7 +391,7 @@ const els = {
   interval: $('interval'), window: $('window'), voice: $('voice'), rate: $('rate'), brief: $('brief'),
   mode: $('mode'), lang: $('lang'), voiceHint: $('voiceHint'),
   history: $('historyBody'), sessionInfo: $('sessionInfo'), 
-  send: $('sendBtn'), clear: $('clearBtn'), sendStatus: $('sendStatus')
+  send: $('sendBtn'), copy: $('copyBtn'), clear: $('clearBtn'), sendStatus: $('sendStatus')
 };
 
 const HR_SERVICE = 'heart_rate', HR_CHAR = 'heart_rate_measurement';
@@ -920,6 +921,23 @@ function saveBlob(blob, name) {
 
 /* ---------- send data ---------- */
 const SEND_TO = 'itochang123@yahoo.com';
+async function copyData() {
+  if (!state.beats.length && !state.readings.length) { els.sendStatus.textContent = '尚無資料可複製。'; return; }
+  let text = beatsCsv().replace(/^\uFEFF/, '');
+  let note = '已複製心搏資料。';
+  if (text.length > 200000) {
+    text = readingsCsv().replace(/^\uFEFF/, '');
+    note = '心搏資料太長，已改為複製每次讀值（心率與 HRV）。';
+  }
+  text = 'Polar H10 資料（請分析我的心率與心率變異性）\n' + text;
+  try { await navigator.clipboard.writeText(text); }
+  catch (_) {
+    const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (_) {}
+    ta.remove(); if (!ok) { els.sendStatus.textContent = '無法複製，請改用傳送資料。'; return; }
+  }
+  els.sendStatus.textContent = note + '請到 Gemini 貼上。';
+}
 async function sendData() {
   if (!state.beats.length) { els.sendStatus.textContent = '尚無資料可傳送。'; return; }
   const stamp = csvStamp();
@@ -1005,7 +1023,7 @@ window.addEventListener('pagehide', () => { store.flush(); });
 
 function enableDataButtons() {
   const has = state.beats.length > 0 || state.readings.length > 0 || state.sessionStart != null;
-  els.send.disabled = els.clear.disabled = !has;
+  els.send.disabled = els.copy.disabled = els.clear.disabled = !has;
 }
 function updateSessionInfo() {
   const beatCount = state.beats.reduce((n, b) => n + (b.gap ? 0 : 1), 0);
@@ -1059,6 +1077,7 @@ els.test.addEventListener('click', () => {
   speak(phrase(60, { rmssd: 50, rejectedShare: 0 }, { brief: s.brief, mode: s.mode, lang: s.lang, contact: true }));
 });
 els.send.addEventListener('click', sendData);
+els.copy.addEventListener('click', copyData);
 els.clear.addEventListener('click', clearData);
 els.interval.addEventListener('change', () => { saveUrlSettings(); tick(); });
 els.window.addEventListener('change', () => { saveUrlSettings(); renderLive(Date.now()); });
