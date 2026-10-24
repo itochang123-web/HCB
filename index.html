@@ -935,7 +935,7 @@ async function sendData() {
     try { ok = navigator.canShare({ files }); } catch (_) { ok = false; }
     if (ok) {
       try {
-        await navigator.share({ files, title: subject, text: subject });
+        await navigator.share({ files });
         els.sendStatus.textContent = '已開啟分享選單。請選擇 Gmail、LINE 或 Gemini 等程式傳送。';
         return;
       } catch (err) {
