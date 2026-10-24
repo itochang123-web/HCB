@@ -211,7 +211,6 @@ td.empty { color: var(--ink-soft); }
     </table>
     <div class="foot">
       <span id="sessionInfo"></span>
-      <button id="downloadBtn" type="button" disabled>下載心搏資料（CSV）</button>
       <button id="sendBtn" class="primary" type="button" disabled>傳送資料</button>
       <button id="clearBtn" type="button" disabled>清除資料</button>
     </div>
@@ -390,7 +389,7 @@ const els = {
   connect: $('connectBtn'), voiceBtn: $('voiceBtn'), test: $('testBtn'),
   interval: $('interval'), window: $('window'), voice: $('voice'), rate: $('rate'), brief: $('brief'),
   mode: $('mode'), lang: $('lang'), voiceHint: $('voiceHint'),
-  history: $('historyBody'), sessionInfo: $('sessionInfo'), download: $('downloadBtn'),
+  history: $('historyBody'), sessionInfo: $('sessionInfo'), 
   send: $('sendBtn'), clear: $('clearBtn'), sendStatus: $('sendStatus')
 };
 
@@ -918,9 +917,6 @@ function saveBlob(blob, name) {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
-function downloadCsv() {
-  saveBlob(new Blob([beatsCsv()], { type: 'text/csv;charset=utf-8' }), `H10-心搏資料-${csvStamp()}.csv`);
-}
 
 /* ---------- send data ---------- */
 const SEND_TO = 'itochang123@yahoo.com';
@@ -1011,7 +1007,7 @@ window.addEventListener('pagehide', () => { store.flush(); });
 
 function enableDataButtons() {
   const has = state.beats.length > 0 || state.readings.length > 0 || state.sessionStart != null;
-  els.download.disabled = els.send.disabled = els.clear.disabled = !has;
+  els.send.disabled = els.clear.disabled = !has;
 }
 function updateSessionInfo() {
   const beatCount = state.beats.reduce((n, b) => n + (b.gap ? 0 : 1), 0);
@@ -1064,7 +1060,6 @@ els.test.addEventListener('click', () => {
   const s = settings();
   speak(phrase(60, { rmssd: 50, rejectedShare: 0 }, { brief: s.brief, mode: s.mode, lang: s.lang, contact: true }));
 });
-els.download.addEventListener('click', downloadCsv);
 els.send.addEventListener('click', sendData);
 els.clear.addEventListener('click', clearData);
 els.interval.addEventListener('change', () => { saveUrlSettings(); tick(); });
