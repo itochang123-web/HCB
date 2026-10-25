@@ -313,18 +313,31 @@ function createArtifactFilter() {
 }
 
 
-// Classic premature + compensatory pause: short RR then long RR vs recent median.
-// Matches chart spikes (dip then peak). Isolated early beats alone do not alert.
-function isShortLongPrematurePair(shortRr, longRr, priorInRange) {
-  if (!(shortRr >= RR_MIN_MS && shortRr <= RR_MAX_MS)) return false;
-  if (!(longRr >= RR_MIN_MS && longRr <= RR_MAX_MS)) return false;
-  if (priorInRange.length < FILTER_MIN_HISTORY) return false;
+// Baseline median from prior 5–9 in-range RRs (300–2000 ms).
+function recentRrMedian(priorInRange) {
+  if (priorInRange.length < FILTER_MIN_HISTORY) return null;
   const recent = priorInRange.length > FILTER_HISTORY
     ? priorInRange.slice(-FILTER_HISTORY)
     : priorInRange;
   const ref = median(recent);
-  if (!(ref > 0)) return false;
+  return ref > 0 ? ref : null;
+}
+
+function isInRangeRr(rr) {
+  return rr >= RR_MIN_MS && rr <= RR_MAX_MS;
+}
+
+// Classic spike: short then compensatory long vs baseline.
+function isShortLongPrematurePair(shortRr, longRr, ref) {
+  if (ref == null || !isInRangeRr(shortRr) || !isInRangeRr(longRr)) return false;
   return shortRr <= ref * (1 - FILTER_TOLERANCE) && longRr >= ref * (1 + FILTER_TOLERANCE);
+}
+
+// Isolated early beat: short vs baseline, without a following long compensatory RR.
+function isShortOnlyEarly(shortRr, nextRr, ref) {
+  if (ref == null || !isInRangeRr(shortRr) || !isInRangeRr(nextRr)) return false;
+  if (!(shortRr <= ref * (1 - FILTER_TOLERANCE))) return false;
+  return !(nextRr >= ref * (1 + FILTER_TOLERANCE));
 }
 
 // RMSSD over beats that arrived in [nowMs - windowMs, nowMs].
@@ -360,7 +373,7 @@ const SPEECH = {
     noSignal: 'No heart rate signal.', noSignalBrief: 'No signal.',
     noContact: 'No skin contact. Check the strap.', noContactBrief: 'No contact.',
     disconnected: 'Strap disconnected.', reconnected: 'Strap reconnected.', connecting: 'Connecting',
-    premature: 'Premature beat alert'
+    premature: 'Premature beat alert', early: 'Early heartbeat'
   },
   zh: {
     hr: '心率', hrv: '心率變異性', join: '。', end: '。', warn: '，請檢查胸帶',
@@ -368,7 +381,7 @@ const SPEECH = {
     noSignal: '沒有心率訊號。', noSignalBrief: '沒有訊號。',
     noContact: '胸帶沒有接觸到皮膚，請檢查胸帶。', noContactBrief: '接觸不良。',
     disconnected: '胸帶已斷線。', reconnected: '胸帶已重新連線。', connecting: '連線中',
-    premature: '心悸警訊'
+    premature: '心悸警訊', early: '心跳提早'
   }
 };
 
@@ -440,10 +453,11 @@ function setStatus(text, alert = false) {
   els.status.classList.toggle('alert', alert);
 }
 
-function announcePremature(now) {
-  const msg = words().premature;
+function announceBeatAlert(kind) {
+  const L = words();
+  const msg = kind === 'early' ? L.early : L.premature;
   setStatus(msg, true);
-  // Speak even when 只播報數字 is on (this is an event alert, not a number reading).
+  // Speak even when 只播報數字 is on (event alert, not a number reading).
   if (state.voiceOn) speak(msg);
   clearTimeout(state.prematureStatusTimer);
   state.prematureStatusTimer = setTimeout(() => {
@@ -453,35 +467,46 @@ function announcePremature(now) {
 }
 
 function maybePrematureAlert(rr, now) {
-  // Need previous in-range RR (exclude current). Skip across gaps.
+  // Decide on the beat AFTER a candidate short: short→long wins; else short-only.
   let prev = null;
   let prevIndex = -1;
   for (let i = state.beats.length - 2; i >= 0; i--) {
     const b = state.beats[i];
     if (b.gap) return; // disconnection breaks the pair
     if (b.rr == null) continue;
-    if (b.rr >= RR_MIN_MS && b.rr <= RR_MAX_MS) { prev = b.rr; prevIndex = i; break; }
+    if (isInRangeRr(b.rr)) { prev = b.rr; prevIndex = i; break; }
   }
-  if (prev == null) return;
+  if (prev == null || !isInRangeRr(rr)) {
+    state.prematureArmed = true;
+    return;
+  }
 
-  // Baseline: in-range RRs before the short candidate (exclude prev + current).
+  // Baseline before the candidate short (exclude prev + current).
   const priors = [];
   for (let i = prevIndex - 1; i >= 0 && priors.length < FILTER_HISTORY; i--) {
     const b = state.beats[i];
     if (b.gap || b.rr == null) continue;
-    if (b.rr >= RR_MIN_MS && b.rr <= RR_MAX_MS) priors.push(b.rr);
+    if (isInRangeRr(b.rr)) priors.push(b.rr);
   }
   priors.reverse();
+  const ref = recentRrMedian(priors);
+  if (ref == null) {
+    state.prematureArmed = true;
+    return;
+  }
 
-  if (!isShortLongPrematurePair(prev, rr, priors)) {
-    state.prematureArmed = true; // re-arm after non-spike beats; cooldown still blocks bursts
+  const shortThenLong = isShortLongPrematurePair(prev, rr, ref);
+  const shortOnly = !shortThenLong && isShortOnlyEarly(prev, rr, ref);
+  if (!shortThenLong && !shortOnly) {
+    state.prematureArmed = true;
     return;
   }
   if (!state.prematureArmed) return;
   if (now - state.lastPrematureAlertAt < PREMATURE_COOLDOWN_MS) return;
   state.prematureArmed = false;
   state.lastPrematureAlertAt = now;
-  announcePremature(now);
+  // short→long takes priority; never both for the same short beat.
+  announceBeatAlert(shortThenLong ? 'premature' : 'early');
 }
 
 /* ---------- speech ---------- */
