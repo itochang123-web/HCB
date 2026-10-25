@@ -237,6 +237,7 @@ const FILTER_MIN_HISTORY = 5;   // beats needed before the median test applies
 const FILTER_RESEED_AFTER = 5;  // consistent rejected beats that signal a real heart-rate shift
 const MIN_PAIRS = 10;           // successive differences needed before HRV is reported
 const NOISY_SHARE = 0.20;       // above this share of dropped beats, the reading is flagged
+const PREMATURE_COOLDOWN_MS = 3500; // min gap between premature-beat alerts
 
 // Bluetooth Heart Rate Measurement characteristic (0x2A37)
 function parseHeartRateMeasurement(view) {
@@ -311,6 +312,19 @@ function createArtifactFilter() {
   };
 }
 
+
+// Premature / early beat: RR at least 20% shorter than the median of the
+// previous 5–9 in-range RRs (same spirit as the artifact filter).
+function isPrematureBeat(rr, priorInRange) {
+  if (!(rr >= RR_MIN_MS && rr <= RR_MAX_MS)) return false;
+  if (priorInRange.length < FILTER_MIN_HISTORY) return false;
+  const recent = priorInRange.length > FILTER_HISTORY
+    ? priorInRange.slice(-FILTER_HISTORY)
+    : priorInRange;
+  const ref = median(recent);
+  return rr < ref * (1 - FILTER_TOLERANCE);
+}
+
 // RMSSD over beats that arrived in [nowMs - windowMs, nowMs].
 // beats: [{ t, rr, ok, gap? }] in arrival order. No difference is taken across
 // a dropped beat or a disconnection.
@@ -343,14 +357,16 @@ const SPEECH = {
     notReady: 'H R V not ready yet', notReadyBrief: 'Not ready',
     noSignal: 'No heart rate signal.', noSignalBrief: 'No signal.',
     noContact: 'No skin contact. Check the strap.', noContactBrief: 'No contact.',
-    disconnected: 'Strap disconnected.', reconnected: 'Strap reconnected.', connecting: 'Connecting'
+    disconnected: 'Strap disconnected.', reconnected: 'Strap reconnected.', connecting: 'Connecting',
+    premature: 'Premature beat alert'
   },
   zh: {
     hr: '心率', hrv: '心率變異性', join: '。', end: '。', warn: '，請檢查胸帶',
     notReady: '心率變異性計算中', notReadyBrief: '計算中',
     noSignal: '沒有心率訊號。', noSignalBrief: '沒有訊號。',
     noContact: '胸帶沒有接觸到皮膚，請檢查胸帶。', noContactBrief: '接觸不良。',
-    disconnected: '胸帶已斷線。', reconnected: '胸帶已重新連線。', connecting: '連線中'
+    disconnected: '胸帶已斷線。', reconnected: '胸帶已重新連線。', connecting: '連線中',
+    premature: '心悸警訊'
   }
 };
 
@@ -403,7 +419,8 @@ const state = {
   beats: [], filter: createArtifactFilter(),
   lastHr: null, lastPacketAt: 0, contact: null, staleShown: false,
   voiceOn: true, lastReadingAt: 0, readings: [],
-  wakeLock: null, sessionStart: null, battery: null, ticker: null
+  wakeLock: null, sessionStart: null, battery: null, ticker: null,
+  prematureArmed: true, lastPrematureAlertAt: 0, prematureStatusTimer: null
 };
 
 const settings = () => ({
@@ -419,6 +436,39 @@ const words = () => SPEECH[settings().lang];
 function setStatus(text, alert = false) {
   els.status.textContent = text;
   els.status.classList.toggle('alert', alert);
+}
+
+function announcePremature(now) {
+  const msg = words().premature;
+  setStatus(msg, true);
+  // Speak even when 只播報數字 is on (this is an event alert, not a number reading).
+  if (state.voiceOn) speak(msg);
+  clearTimeout(state.prematureStatusTimer);
+  state.prematureStatusTimer = setTimeout(() => {
+    state.prematureStatusTimer = null;
+    if (state.connected && !state.staleShown && state.contact !== false) updateConnectedStatus();
+  }, 4000);
+}
+
+function maybePrematureAlert(rr, now) {
+  // Priors: in-range RRs already stored (exclude the beat just pushed).
+  const priors = [];
+  for (let i = state.beats.length - 2; i >= 0 && priors.length < FILTER_HISTORY; i--) {
+    const b = state.beats[i];
+    if (b.gap || b.rr == null) continue;
+    if (b.rr >= RR_MIN_MS && b.rr <= RR_MAX_MS) priors.push(b.rr);
+  }
+  priors.reverse();
+  const early = isPrematureBeat(rr, priors);
+  if (!early) {
+    state.prematureArmed = true; // re-arm after a non-early beat (short→normal pattern)
+    return;
+  }
+  if (!state.prematureArmed) return;
+  if (now - state.lastPrematureAlertAt < PREMATURE_COOLDOWN_MS) return;
+  state.prematureArmed = false;
+  state.lastPrematureAlertAt = now;
+  announcePremature(now);
 }
 
 /* ---------- speech ---------- */
@@ -600,6 +650,7 @@ function onMeasurement(event) {
     const beat = { t: now, rr, ok: m.contact === false ? false : state.filter.test(rr), contact: m.contact };
     state.beats.push(beat);
     store.queue('beats', beat);
+    if (m.contact !== false) maybePrematureAlert(rr, now);
   }
   if (state.beats.length > MAX_BEATS) state.beats.splice(0, state.beats.length - MAX_BEATS);
   if (contactChanged || state.staleShown) { state.staleShown = false; updateConnectedStatus(); }
@@ -615,6 +666,9 @@ function onDisconnected() {
   state.beats.push(gapMark);
   store.queue('beats', gapMark);
   state.filter.reset();
+  state.prematureArmed = true;
+  clearTimeout(state.prematureStatusTimer);
+  state.prematureStatusTimer = null;
   renderLive(Date.now());
   if (state.userDisconnect) { setDisconnectedUI('已中斷連線'); return; }
   if (state.voiceOn) speak(words().disconnected);
