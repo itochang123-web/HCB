@@ -313,16 +313,18 @@ function createArtifactFilter() {
 }
 
 
-// Premature / early beat: RR at least 20% shorter than the median of the
-// previous 5–9 in-range RRs (same spirit as the artifact filter).
-function isPrematureBeat(rr, priorInRange) {
-  if (!(rr >= RR_MIN_MS && rr <= RR_MAX_MS)) return false;
+// Classic premature + compensatory pause: short RR then long RR vs recent median.
+// Matches chart spikes (dip then peak). Isolated early beats alone do not alert.
+function isShortLongPrematurePair(shortRr, longRr, priorInRange) {
+  if (!(shortRr >= RR_MIN_MS && shortRr <= RR_MAX_MS)) return false;
+  if (!(longRr >= RR_MIN_MS && longRr <= RR_MAX_MS)) return false;
   if (priorInRange.length < FILTER_MIN_HISTORY) return false;
   const recent = priorInRange.length > FILTER_HISTORY
     ? priorInRange.slice(-FILTER_HISTORY)
     : priorInRange;
   const ref = median(recent);
-  return rr < ref * (1 - FILTER_TOLERANCE);
+  if (!(ref > 0)) return false;
+  return shortRr <= ref * (1 - FILTER_TOLERANCE) && longRr >= ref * (1 + FILTER_TOLERANCE);
 }
 
 // RMSSD over beats that arrived in [nowMs - windowMs, nowMs].
@@ -451,17 +453,28 @@ function announcePremature(now) {
 }
 
 function maybePrematureAlert(rr, now) {
-  // Priors: in-range RRs already stored (exclude the beat just pushed).
+  // Need previous in-range RR (exclude current). Skip across gaps.
+  let prev = null;
+  let prevIndex = -1;
+  for (let i = state.beats.length - 2; i >= 0; i--) {
+    const b = state.beats[i];
+    if (b.gap) return; // disconnection breaks the pair
+    if (b.rr == null) continue;
+    if (b.rr >= RR_MIN_MS && b.rr <= RR_MAX_MS) { prev = b.rr; prevIndex = i; break; }
+  }
+  if (prev == null) return;
+
+  // Baseline: in-range RRs before the short candidate (exclude prev + current).
   const priors = [];
-  for (let i = state.beats.length - 2; i >= 0 && priors.length < FILTER_HISTORY; i--) {
+  for (let i = prevIndex - 1; i >= 0 && priors.length < FILTER_HISTORY; i--) {
     const b = state.beats[i];
     if (b.gap || b.rr == null) continue;
     if (b.rr >= RR_MIN_MS && b.rr <= RR_MAX_MS) priors.push(b.rr);
   }
   priors.reverse();
-  const early = isPrematureBeat(rr, priors);
-  if (!early) {
-    state.prematureArmed = true; // re-arm after a non-early beat (short→normal pattern)
+
+  if (!isShortLongPrematurePair(prev, rr, priors)) {
+    state.prematureArmed = true; // re-arm after non-spike beats; cooldown still blocks bursts
     return;
   }
   if (!state.prematureArmed) return;
