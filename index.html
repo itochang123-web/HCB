@@ -77,12 +77,14 @@ h1 { font-size: 1.125rem; font-weight: 600; margin: 0; }
 #next { margin: 1rem 0 0; color: var(--ink-soft); font-size: 0.9375rem; font-variant-numeric: tabular-nums; }
 
 .trace { position: relative; height: 274px; margin: 1.25rem 0 0.5rem; }
+.trace.hrv-trace { height: 220px; margin-top: 0.25rem; }
 .trace canvas { display: block; width: 100%; height: 100%; }
 .trace .empty {
   position: absolute; inset: 30px 14px 82px 45px; display: grid; place-items: center;
   padding: 0 0.75rem; text-align: center; color: var(--ink-soft); font-size: 0.9375rem;
 }
 .trace .empty[hidden] { display: none; }
+.trace[hidden] { display: none; }
 .trace-caption { margin: 0 0 1.5rem; color: var(--ink-soft); font-size: 0.8125rem; }
 
 .actions { display: flex; flex-wrap: wrap; gap: 0.625rem; }
@@ -151,7 +153,10 @@ td.empty { color: var(--ink-soft); }
     <canvas id="trace" role="img" aria-label="最近兩分鐘的心搏間期；縱軸為毫秒，橫軸為距今秒數；藍色區間標示 HRV 計算範圍"></canvas>
     <div class="empty" id="traceEmpty">請先沾濕胸帶電極，戴好胸帶後再連線。</div>
   </div>
-  <p class="trace-caption">圓圈標示被排除的心搏；藍色區間與下方橫條標示 HRV 計算範圍。</p>
+  <div class="trace hrv-trace" id="hrvTraceWrap" hidden>
+    <canvas id="hrvTrace" role="img" aria-label="心率變異性（RMSSD）趨勢"></canvas>
+  </div>
+  <p class="trace-caption" id="traceCaption">圓圈標示被排除的心搏；藍色區間與下方橫條標示 HRV 計算範圍。</p>
 
   <div class="actions">
     <button class="primary" id="connectBtn" type="button">連接胸帶</button>
@@ -175,7 +180,7 @@ td.empty { color: var(--ink-soft); }
         <option value="60">每 60 秒</option>
       </select>
     </label>
-    <label>心率變異性計算範圍
+    <label id="windowLabel">心率變異性計算範圍
       <select id="window">
         <option value="15" selected>最近 15 秒</option>
         <option value="30">最近 30 秒</option>
@@ -183,6 +188,17 @@ td.empty { color: var(--ink-soft); }
         <option value="120">最近 2 分鐘</option>
       </select>
     </label>
+    <label id="chartSpanLabel">圖表時間範圍
+      <select id="chartSpan">
+        <option value="2" selected>最近 2 分鐘</option>
+        <option value="5">最近 5 分鐘</option>
+        <option value="10">最近 10 分鐘</option>
+        <option value="15">最近 15 分鐘</option>
+        <option value="30">最近 30 分鐘</option>
+        <option value="60">最近 60 分鐘</option>
+      </select>
+    </label>
+    <label class="check" id="hrvGraphLabel"><input type="checkbox" id="hrvGraph"> 顯示 HRV 圖表</label>
     <label>播報語言
       <select id="lang">
         <option value="zh" selected>台灣華語</option>
@@ -417,16 +433,20 @@ const $ = id => document.getElementById(id);
 const els = {
   status: $('status'), hr: $('hrValue'), hrv: $('hrvValue'), hrvDetail: $('hrvDetail'), next: $('next'),
   canvas: $('trace'), traceEmpty: $('traceEmpty'),
+  hrvWrap: $('hrvTraceWrap'), hrvCanvas: $('hrvTrace'), traceCaption: $('traceCaption'),
   connect: $('connectBtn'), voiceBtn: $('voiceBtn'), test: $('testBtn'),
-  interval: $('interval'), window: $('window'), voice: $('voice'), rate: $('rate'), brief: $('brief'),
+  interval: $('interval'), window: $('window'), chartSpan: $('chartSpan'), hrvGraph: $('hrvGraph'),
+  chartSpanLabel: $('chartSpanLabel'), hrvGraphLabel: $('hrvGraphLabel'), windowLabel: $('windowLabel'),
+  voice: $('voice'), rate: $('rate'), brief: $('brief'),
   mode: $('mode'), lang: $('lang'), voiceHint: $('voiceHint'),
-  history: $('historyBody'), sessionInfo: $('sessionInfo'), 
+  history: $('historyBody'), sessionInfo: $('sessionInfo'),
   send: $('sendBtn'), clear: $('clearBtn'), sendStatus: $('sendStatus')
 };
 
 const HR_SERVICE = 'heart_rate', HR_CHAR = 'heart_rate_measurement';
 const BATT_SERVICE = 'battery_service', BATT_CHAR = 'battery_level';
-const TRACE_SPAN_MS = 120000, STALE_MS = 5000, MAX_BEATS = 400000, MAX_RECONNECTS = 8;
+const STALE_MS = 5000, MAX_BEATS = 400000, MAX_RECONNECTS = 8;
+const CHART_SPAN_OPTIONS = [2, 5, 10, 15, 30, 60];
 
 const state = {
   device: null, characteristic: null, connected: false, connecting: false, userDisconnect: false,
@@ -438,14 +458,21 @@ const state = {
   prematureArmed: true, lastPrematureAlertAt: 0, prematureStatusTimer: null
 };
 
-const settings = () => ({
-  intervalMs: Number(els.interval.value) * 1000,
-  windowMs: Number(els.window.value) * 1000,
-  rate: Number(els.rate.value),
-  brief: els.brief.checked,
-  mode: els.mode.value,
-  lang: els.lang.value === 'en' ? 'en' : 'zh'
-});
+const settings = () => {
+  let chartMin = Number(els.chartSpan.value);
+  if (!CHART_SPAN_OPTIONS.includes(chartMin)) chartMin = 2;
+  return {
+    intervalMs: Number(els.interval.value) * 1000,
+    windowMs: Number(els.window.value) * 1000,
+    chartSpanMs: chartMin * 60000,
+    chartSpanMin: chartMin,
+    hrvGraph: els.hrvGraph.checked,
+    rate: Number(els.rate.value),
+    brief: els.brief.checked,
+    mode: els.mode.value,
+    lang: els.lang.value === 'en' ? 'en' : 'zh'
+  };
+};
 const words = () => SPEECH[settings().lang];
 
 function setStatus(text, alert = false) {
@@ -562,7 +589,7 @@ function speak(text, volume = 1) {
 }
 
 /* ---------- settings kept in the page address ---------- */
-const URL_KEYS = { say: 'mode', every: 'interval', window: 'window', lang: 'lang', speed: 'rate' };
+const URL_KEYS = { say: 'mode', every: 'interval', window: 'window', lang: 'lang', speed: 'rate', chart: 'chartSpan' };
 function applyUrlSettings() {
   let q;
   try { q = new URLSearchParams(location.search); } catch (_) { return; }
@@ -572,12 +599,15 @@ function applyUrlSettings() {
   }
   if (q.get('brief') === '1') els.brief.checked = true;
   else if (q.get('brief') === '0') els.brief.checked = false;
+  if (q.get('hrvg') === '1') els.hrvGraph.checked = true;
+  else if (q.get('hrvg') === '0') els.hrvGraph.checked = false;
 }
 function saveUrlSettings() {
   try {
     const q = new URLSearchParams();
     for (const [key, id] of Object.entries(URL_KEYS)) q.set(key, els[id].value);
     q.set('brief', els.brief.checked ? '1' : '0');
+    q.set('hrvg', els.hrvGraph.checked ? '1' : '0');
     history.replaceState(null, '', `${location.pathname}?${q.toString()}`);
   } catch (_) { /* preview frames may block this; settings still work for this visit */ }
 }
@@ -763,7 +793,15 @@ function setDisconnectedUI(message, alert = false) {
 }
 
 /* ---------- readings ---------- */
-function windowLabel(ms) { return ms >= 60000 && ms % 60000 === 0 ? `最近 ${ms / 60000} 分鐘` : `最近 ${ms / 1000} 秒`; }
+function windowLabel(ms) {
+  const en = settings().lang === 'en';
+  if (ms >= 60000 && ms % 60000 === 0) {
+    const m = ms / 60000;
+    return en ? `Last ${m} min` : `最近 ${m} 分鐘`;
+  }
+  const s = ms / 1000;
+  return en ? `Last ${s} s` : `最近 ${s} 秒`;
+}
 
 function renderLive(now) {
   const s = settings();
@@ -838,13 +876,99 @@ function tick() {
 
 /* ---------- trace ---------- */
 const ctx2d = els.canvas.getContext('2d');
+const hrvCtx = els.hrvCanvas ? els.hrvCanvas.getContext('2d') : null;
 function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+const UI = {
+  zh: {
+    chartSpan: '圖表時間範圍',
+    hrvGraph: '顯示 HRV 圖表',
+    spanOpt: m => `最近 ${m} 分鐘`,
+    rrTitle: '心搏間期（毫秒）',
+    hrvTitle: '心率變異性（RMSSD，毫秒）',
+    timeSec: '時間（秒前；0 = 現在）',
+    timeMin: '時間（分鐘前；0 = 現在）',
+    hrvRange: w => `HRV 計算範圍：${w}`,
+    caption: '圓圈標示被排除的心搏；藍色區間與下方橫條標示 HRV 計算範圍。下方可開啟獨立的 HRV 圖表。',
+    rrAria: (span, winSec) => `最近 ${span} 分鐘的心搏間期；縱軸為毫秒；藍色區間標示最近 ${winSec} 秒的 HRV 計算範圍`,
+    hrvAria: span => `最近 ${span} 分鐘的心率變異性（RMSSD）趨勢`
+  },
+  en: {
+    chartSpan: 'Chart time range',
+    hrvGraph: 'Show HRV chart',
+    spanOpt: m => `Last ${m} min`,
+    rrTitle: 'RR interval (ms)',
+    hrvTitle: 'HRV (RMSSD, ms)',
+    timeSec: 'Time (seconds ago; 0 = now)',
+    timeMin: 'Time (minutes ago; 0 = now)',
+    hrvRange: w => `HRV window: ${w}`,
+    caption: 'Circles mark excluded beats; the blue band and bar show the HRV calculation window. Optionally show a separate HRV chart below.',
+    rrAria: (span, winSec) => `RR intervals over the last ${span} minutes; blue band is the last ${winSec}s HRV window`,
+    hrvAria: span => `HRV (RMSSD) trend over the last ${span} minutes`
+  }
+};
+const ui = () => UI[settings().lang] || UI.zh;
+
+function applyChartUi() {
+  const L = ui();
+  if (els.chartSpanLabel) {
+    const sel = els.chartSpan;
+    while (els.chartSpanLabel.firstChild && els.chartSpanLabel.firstChild !== sel) {
+      els.chartSpanLabel.removeChild(els.chartSpanLabel.firstChild);
+    }
+    els.chartSpanLabel.insertBefore(document.createTextNode(L.chartSpan + ' '), sel);
+    const cur = els.chartSpan.value;
+    for (const o of els.chartSpan.options) o.textContent = L.spanOpt(Number(o.value));
+    els.chartSpan.value = cur;
+  }
+  if (els.hrvGraphLabel) {
+    const input = els.hrvGraph;
+    els.hrvGraphLabel.textContent = '';
+    els.hrvGraphLabel.appendChild(input);
+    els.hrvGraphLabel.appendChild(document.createTextNode(' ' + L.hrvGraph));
+  }
+  if (els.traceCaption) els.traceCaption.textContent = L.caption;
+  els.hrvWrap.hidden = !settings().hrvGraph;
+}
+
+function niceAxis(low, high) {
+  if (!Number.isFinite(low)) { low = 0; high = 100; }
+  const pad = Math.max(5, (high - low) * 0.18);
+  const roughStep = (high - low + 2 * pad) / 4;
+  const power = 10 ** Math.floor(Math.log10(Math.max(roughStep, 1e-6)));
+  const scaled = roughStep / power;
+  const step = (scaled <= 1 ? 1 : scaled <= 2 ? 2 : scaled <= 5 ? 5 : 10) * power;
+  low = Math.max(0, Math.floor((low - pad) / step) * step);
+  high = Math.ceil((high + pad) / step) * step;
+  if (high <= low) high = low + step;
+  const yTicks = [];
+  for (let value = low; value <= high + step / 2; value += step) yTicks.push(value);
+  return { low, high, yTicks };
+}
+
+function chartXTicks(spanMs, nowMs, X) {
+  const spanMin = spanMs / 60000;
+  if (spanMin <= 2) {
+    return {
+      useMinutes: false,
+      ticks: [120, 90, 60, 30, 0].map(seconds => ({ label: String(seconds), x: X(nowMs - seconds * 1000) }))
+    };
+  }
+  const step = spanMin <= 5 ? 1 : spanMin <= 15 ? 5 : spanMin <= 30 ? 10 : 15;
+  const ticks = [];
+  for (let m = spanMin; m > 0; m -= step) ticks.push(m);
+  ticks.push(0);
+  return {
+    useMinutes: true,
+    ticks: ticks.map(minutes => ({ label: String(minutes), x: X(nowMs - minutes * 60000) }))
+  };
+}
 
 // Plot and RMSSD use the same arrival timestamps and the same "now".
 // A packet can contain more than one RR value, so some points can share an x position.
-function traceModel(beats, nowMs, windowMs, width, height) {
+function traceModel(beats, nowMs, windowMs, spanMs, width, height) {
   const plot = { left: 45, right: width - 14, top: 30, bottom: height - 82 };
-  const from = nowMs - TRACE_SPAN_MS;
+  const from = nowMs - spanMs;
   const points = [];
   for (let i = beats.length - 1; i >= 0; i--) {
     const b = beats[i];
@@ -859,40 +983,45 @@ function traceModel(beats, nowMs, windowMs, width, height) {
     high = Math.max(high, b.rr);
   }
   if (!Number.isFinite(low)) { low = 700; high = 1100; }
-  const pad = Math.max(25, (high - low) * 0.18);
-  const roughStep = (high - low + 2 * pad) / 4;
-  const power = 10 ** Math.floor(Math.log10(roughStep));
-  const scaled = roughStep / power;
-  const step = (scaled <= 1 ? 1 : scaled <= 2 ? 2 : scaled <= 5 ? 5 : 10) * power;
-  low = Math.max(0, Math.floor((low - pad) / step) * step);
-  high = Math.ceil((high + pad) / step) * step;
-  const X = t => plot.left + (t - from) / TRACE_SPAN_MS * (plot.right - plot.left);
+  const axis = niceAxis(low, high);
+  low = axis.low; high = axis.high;
+  const X = t => plot.left + (t - from) / spanMs * (plot.right - plot.left);
   const Y = rr => plot.bottom - (rr - low) / (high - low) * (plot.bottom - plot.top);
-  const yTicks = [];
-  for (let value = low; value <= high + step / 2; value += step) yTicks.push(value);
-  const span = Math.min(TRACE_SPAN_MS, Math.max(0, windowMs));
-  return { plot, points, X, Y, low, high, yTicks,
+  const span = Math.min(spanMs, Math.max(0, windowMs));
+  const xInfo = chartXTicks(spanMs, nowMs, X);
+  return { plot, points, X, Y, low, high, yTicks: axis.yTicks,
     windowStartX: X(nowMs - span), windowEndX: plot.right,
-    xTicks: [120, 90, 60, 30, 0].map(seconds => ({ seconds, x: X(nowMs - seconds * 1000) }))
+    xTicks: xInfo.ticks, useMinutes: xInfo.useMinutes
   };
+}
+
+function prepareCanvas(canvas, ctx) {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w || !h || !ctx) return null;
+  const dpr = window.devicePixelRatio || 1;
+  const pw = Math.round(w * dpr), ph = Math.round(h * dpr);
+  if (canvas.width !== pw || canvas.height !== ph) { canvas.width = pw; canvas.height = ph; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { w, h };
 }
 
 function drawTrace(nowMs) {
   const now = Number.isFinite(nowMs) ? nowMs : Date.now();
-  const w = els.canvas.clientWidth, h = els.canvas.clientHeight;
-  if (!w || !h || !ctx2d) return;
-  const dpr = window.devicePixelRatio || 1;
-  const pw = Math.round(w * dpr), ph = Math.round(h * dpr);
-  if (els.canvas.width !== pw || els.canvas.height !== ph) { els.canvas.width = pw; els.canvas.height = ph; }
-  ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx2d.clearRect(0, 0, w, h);
-  const windowMs = settings().windowMs;
-  const { plot, points, X, Y, yTicks, xTicks, windowStartX, windowEndX } = traceModel(state.beats, now, windowMs, w, h);
+  const s = settings();
+  els.hrvWrap.hidden = !s.hrvGraph;
+  const size = prepareCanvas(els.canvas, ctx2d);
+  if (!size) { if (s.hrvGraph) drawHrvTrace(now); return; }
+  const { w, h } = size;
+  const windowMs = s.windowMs;
+  const spanMs = s.chartSpanMs;
+  const L = ui();
+  const { plot, points, X, Y, yTicks, xTicks, useMinutes, windowStartX, windowEndX } =
+    traceModel(state.beats, now, windowMs, spanMs, w, h);
   const ink = cssVar('--ink-soft'), grid = cssVar('--line'), pen = cssVar('--pen');
   const font = cssVar('--font-ui');
   const plotHeight = plot.bottom - plot.top;
 
-  // A matching shaded area makes the bar easy to relate to the plotted beats.
   ctx2d.save();
   ctx2d.fillStyle = pen;
   ctx2d.globalAlpha = 0.08;
@@ -913,7 +1042,7 @@ function drawTrace(nowMs) {
   for (const tick of xTicks) {
     ctx2d.beginPath(); ctx2d.moveTo(tick.x, plot.top); ctx2d.lineTo(tick.x, plot.bottom); ctx2d.stroke();
     ctx2d.textAlign = 'center';
-    ctx2d.fillText(String(tick.seconds), tick.x, plot.bottom + 16);
+    ctx2d.fillText(tick.label, tick.x, plot.bottom + 16);
   }
 
   ctx2d.strokeStyle = ink;
@@ -923,12 +1052,11 @@ function drawTrace(nowMs) {
   ctx2d.stroke();
   ctx2d.textAlign = 'left';
   ctx2d.font = `500 13px ${font}`;
-  ctx2d.fillText('心搏間期（毫秒）', 0, 12);
+  ctx2d.fillText(L.rrTitle, 0, 12);
   ctx2d.textAlign = 'center';
   ctx2d.font = `12px ${font}`;
-  ctx2d.fillText('時間（秒前；0 = 現在）', (plot.left + plot.right) / 2, plot.bottom + 36);
+  ctx2d.fillText(useMinutes ? L.timeMin : L.timeSec, (plot.left + plot.right) / 2, plot.bottom + 36);
 
-  // The bar uses the exact same scale as the x-axis: 15 / 30 / 60 / 120 seconds.
   const barY = plot.bottom + 53;
   ctx2d.strokeStyle = grid;
   ctx2d.lineWidth = 2;
@@ -944,9 +1072,8 @@ function drawTrace(nowMs) {
   ctx2d.textAlign = 'right';
   ctx2d.fillStyle = pen;
   ctx2d.font = `500 13px ${font}`;
-  ctx2d.fillText(`HRV 計算範圍：${windowLabel(windowMs)}`, plot.right, barY + 20);
+  ctx2d.fillText(L.hrvRange(windowLabel(windowMs)), plot.right, barY + 20);
 
-  // Clip the trace and dropped-beat markers to the labelled plotting area.
   ctx2d.save();
   ctx2d.beginPath(); ctx2d.rect(plot.left, plot.top, plot.right - plot.left, plotHeight); ctx2d.clip();
   ctx2d.strokeStyle = cssVar('--trace');
@@ -969,8 +1096,88 @@ function drawTrace(nowMs) {
     }
   }
   ctx2d.restore();
-  const seconds = windowMs / 1000;
-  els.canvas.setAttribute('aria-label', `最近兩分鐘的心搏間期；縱軸為毫秒，橫軸為距今秒數；藍色區間標示最近 ${seconds} 秒的 HRV 計算範圍`);
+  els.canvas.setAttribute('aria-label', L.rrAria(s.chartSpanMin, windowMs / 1000));
+  if (s.hrvGraph) drawHrvTrace(now);
+}
+
+function drawHrvTrace(nowMs) {
+  if (!hrvCtx || !els.hrvCanvas || els.hrvWrap.hidden) return;
+  const now = Number.isFinite(nowMs) ? nowMs : Date.now();
+  const size = prepareCanvas(els.hrvCanvas, hrvCtx);
+  if (!size) return;
+  const { w, h } = size;
+  const s = settings();
+  const spanMs = s.chartSpanMs;
+  const from = now - spanMs;
+  const L = ui();
+  const points = [];
+  for (let i = state.readings.length - 1; i >= 0; i--) {
+    const r = state.readings[i];
+    if (r.t < from) break;
+    if (r.t <= now && r.rmssd != null && Number.isFinite(r.rmssd)) points.push(r);
+  }
+  points.reverse();
+  let low = Infinity, high = -Infinity;
+  for (const p of points) { low = Math.min(low, p.rmssd); high = Math.max(high, p.rmssd); }
+  if (!Number.isFinite(low)) { low = 20; high = 100; }
+  const axis = niceAxis(low, high);
+  const plot = { left: 45, right: w - 14, top: 30, bottom: h - 52 };
+  const X = t => plot.left + (t - from) / spanMs * (plot.right - plot.left);
+  const Y = v => plot.bottom - (v - axis.low) / (axis.high - axis.low) * (plot.bottom - plot.top);
+  const xInfo = chartXTicks(spanMs, now, X);
+  const ink = cssVar('--ink-soft'), grid = cssVar('--line'), pen = cssVar('--pen');
+  const font = cssVar('--font-ui');
+
+  hrvCtx.font = `12px ${font}`;
+  hrvCtx.textBaseline = 'middle';
+  hrvCtx.strokeStyle = grid;
+  hrvCtx.lineWidth = 0.75;
+  hrvCtx.fillStyle = ink;
+  for (const value of axis.yTicks) {
+    const y = Y(value);
+    hrvCtx.beginPath(); hrvCtx.moveTo(plot.left, y); hrvCtx.lineTo(plot.right, y); hrvCtx.stroke();
+    hrvCtx.textAlign = 'right';
+    hrvCtx.fillText(String(Math.round(value)), plot.left - 8, y);
+  }
+  for (const tick of xInfo.ticks) {
+    hrvCtx.beginPath(); hrvCtx.moveTo(tick.x, plot.top); hrvCtx.lineTo(tick.x, plot.bottom); hrvCtx.stroke();
+    hrvCtx.textAlign = 'center';
+    hrvCtx.fillText(tick.label, tick.x, plot.bottom + 16);
+  }
+  hrvCtx.strokeStyle = ink;
+  hrvCtx.lineWidth = 1;
+  hrvCtx.beginPath();
+  hrvCtx.moveTo(plot.left, plot.top); hrvCtx.lineTo(plot.left, plot.bottom); hrvCtx.lineTo(plot.right, plot.bottom);
+  hrvCtx.stroke();
+  hrvCtx.textAlign = 'left';
+  hrvCtx.font = `500 13px ${font}`;
+  hrvCtx.fillText(L.hrvTitle, 0, 12);
+  hrvCtx.textAlign = 'center';
+  hrvCtx.font = `12px ${font}`;
+  hrvCtx.fillText(xInfo.useMinutes ? L.timeMin : L.timeSec, (plot.left + plot.right) / 2, plot.bottom + 36);
+
+  hrvCtx.save();
+  hrvCtx.beginPath();
+  hrvCtx.rect(plot.left, plot.top, plot.right - plot.left, plot.bottom - plot.top);
+  hrvCtx.clip();
+  hrvCtx.strokeStyle = pen;
+  hrvCtx.lineWidth = 2;
+  hrvCtx.lineJoin = 'round';
+  hrvCtx.beginPath();
+  let drawing = false;
+  for (const p of points) {
+    const x = X(p.t), y = Y(p.rmssd);
+    if (drawing) hrvCtx.lineTo(x, y); else { hrvCtx.moveTo(x, y); drawing = true; }
+  }
+  hrvCtx.stroke();
+  hrvCtx.fillStyle = pen;
+  for (const p of points) {
+    hrvCtx.beginPath();
+    hrvCtx.arc(X(p.t), Y(p.rmssd), 2.5, 0, Math.PI * 2);
+    hrvCtx.fill();
+  }
+  hrvCtx.restore();
+  els.hrvCanvas.setAttribute('aria-label', L.hrvAria(s.chartSpanMin));
 }
 
 /* ---------- screen wake lock ---------- */
@@ -1154,12 +1361,16 @@ els.send.addEventListener('click', sendData);
 els.clear.addEventListener('click', clearData);
 els.interval.addEventListener('change', () => { saveUrlSettings(); tick(); });
 els.window.addEventListener('change', () => { saveUrlSettings(); renderLive(Date.now()); });
-els.lang.addEventListener('change', () => { cancelSpeech(); els.voice.value = ''; loadVoices(); saveUrlSettings(); });
+els.chartSpan.addEventListener('change', () => { saveUrlSettings(); drawTrace(Date.now()); });
+els.hrvGraph.addEventListener('change', () => { saveUrlSettings(); applyChartUi(); drawTrace(Date.now()); });
+els.lang.addEventListener('change', () => {
+  cancelSpeech(); els.voice.value = ''; loadVoices(); saveUrlSettings(); applyChartUi(); drawTrace(Date.now());
+});
 for (const el of [els.mode, els.rate, els.brief]) el.addEventListener('change', saveUrlSettings);
-window.addEventListener('resize', drawTrace);
+window.addEventListener('resize', () => drawTrace(Date.now()));
 if (window.matchMedia) {
   const mq = window.matchMedia('(prefers-color-scheme: dark)');
-  if (mq.addEventListener) { mq.addEventListener('change', drawTrace); }
+  if (mq.addEventListener) { mq.addEventListener('change', () => drawTrace(Date.now())); }
 }
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
@@ -1168,6 +1379,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 applyUrlSettings();
+applyChartUi();
 restoreData();
 drawTrace();
 if (synth) {
